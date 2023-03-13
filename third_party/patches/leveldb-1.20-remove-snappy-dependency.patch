@@ -1,0 +1,27 @@
+diff --git a/build_detect_platform b/build_detect_platform
+index d2a20ce..39f2420 100755
+--- a/build_detect_platform
++++ b/build_detect_platform
+@@ -204,14 +204,14 @@ EOF
+ 
+     # Test whether Snappy library is installed
+     # http://code.google.com/p/snappy/
+-    $CXX $CXXFLAGS -x c++ - -o $CXXOUTPUT 2>/dev/null  <<EOF
+-      #include <snappy.h>
+-      int main() {}
+-EOF
+-    if [ "$?" = 0 ]; then
+-        COMMON_FLAGS="$COMMON_FLAGS -DSNAPPY"
+-        PLATFORM_LIBS="$PLATFORM_LIBS -lsnappy"
+-    fi
++    # $CXX $CXXFLAGS -x c++ - -o $CXXOUTPUT 2>/dev/null  <<EOF
++    #  #include <snappy.h>
++    #  int main() {}
++# EOF
++    # if [ "$?" = 0 ]; then
++        # COMMON_FLAGS="$COMMON_FLAGS -DSNAPPY"
++        # PLATFORM_LIBS="$PLATFORM_LIBS -lsnappy"
++    # fi
+ 
+     # Test whether tcmalloc is available
+     $CXX $CXXFLAGS -x c++ - -o $CXXOUTPUT -ltcmalloc 2>/dev/null  <<EOF

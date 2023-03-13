@@ -1,0 +1,12 @@
+*.pyc
+code-format/__pycache__/
+third_party/installed/
+third_party/src/
+
+# VIM: Swap-files
+[._]*.s[a-w][a-z]
+[._]s[a-w][a-z]
+
+# VIM: Commands :cs, :ctags
+tags
+cscope.*
