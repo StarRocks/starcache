@@ -296,7 +296,6 @@ cmake_build()
         build_dir=tmp-build
     fi
     rm -rf $build_dir/ CMakeCache.tx
-    #mkdir -p $build_dir
     echo $CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
     $CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
 
@@ -325,6 +324,11 @@ build_glog()
 
     pushd $srcdir &>/dev/null
     local srcname=$(basename $(pwd))
+    if [ $srcname == "glog-0.4.0" ] ; then
+        patch -p1 -f -i $TP_PATCH_DIR/glog-0.4.0-for-starrocks2.patch || true
+        patch -p1 -f -i $TP_PATCH_DIR/glog-0.4.0-remove-unwind-dependency.patch || true
+    fi
+
     cmake_build . -DCMAKE_INSTALL_PREFIX=$installprefix -Dgflags_DIR=${installprefix}/lib/cmake/gflags/
     popd
 }
