@@ -117,7 +117,7 @@ DiskBlockPtr DiskCache::new_block_item(const CacheId& cache_id) const {
     BlockId block_id;
     Status st = _space_manager->alloc_block(&block_id);
     if (!st.ok()) {
-        STAR_VLOG << "allocate disk block failed, cache_id" << cache_id << ", reason: " << st.error_str();
+        STAR_VLOG << "allocate disk block failed, cache_id" << cache_id;
         return nullptr;
     }
     DiskBlockPtr block_item(new DiskBlockItem(block_id.dir_index, block_id.block_index), [this](DiskBlockItem* block) {
