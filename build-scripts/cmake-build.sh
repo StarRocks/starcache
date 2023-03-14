@@ -14,8 +14,8 @@ usage() {
   echo "
 Usage: $0 <options>
   Optional options:
-     --with-tests       build Backend with gcov, has an impact on performance
-     --with-tools       build Backend without gcov(default)
+     --with-tests       build starcache with unit tests
+     --with-tools       build starcache with tools
      --clean            clean and build target
 
   Eg.
@@ -23,7 +23,7 @@ Usage: $0 <options>
     $0 --clean                                   clean and build starcache library
     $0 --with-tests                              build starcache library and tests
     $0 --with-tests --with-tools                 build starcache library, tests and tools
-    BUILD_TYPE=build_type ./build.sh             build_type could be Release, Debug, or Asan. Default value is Release. To build Backend in Debug mode, you can execute: BUILD_TYPE=Debug ./build.sh)
+    BUILD_TYPE=build_type ./build.sh             build_type could be Release, Debug, or Asan. Default value is Release. To build starcache in Debug mode, you can execute: BUILD_TYPE=Debug ./build.sh)
   "
   exit 1
 }
@@ -142,7 +142,6 @@ OLD_INSTALL_DIR_PREFIX=$INSTALL_DIR_PREFIX
 INSTALL_DIR_PREFIX=$THIRD_PARTY_INSTALL_PREFIX ./build-thirdparty.sh || exit 1
 INSTALL_DIR_PREFIX=$OLD_INSTALL_DIR_PREFIX
 popd
-
 
 CMAKE_BUILD_DIR=build/build_${CMAKE_BUILD_TYPE}
 STARCACHE_INSTALL_DIR=$INSTALL_DIR_PREFIX/starcache_installed

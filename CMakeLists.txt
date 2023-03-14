@@ -175,8 +175,13 @@ add_library(starcache STATIC
 )
 
 set(STARCACHE_BASIC_LIBS
-	-lbfd -liberty -lc -lm -ldl -rdynamic -pthread
+	-lbfd -liberty -lc -lm -ldl -rdynamic -pthread -static-libstdc++ -static-libgcc
 )
+
+if ("${CMAKE_BUILD_TYPE}" STREQUAL "ASAN")
+    set(STARCACHE_BASIC_LIBS "${STARCACHE_BASIC_LIBS} -static-libasan")
+endif()
+
 
 target_link_libraries(starcache
     -Wl,--start-group
