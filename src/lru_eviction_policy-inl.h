@@ -61,6 +61,7 @@ void LruEvictionPolicy<T>::evict(size_t size, std::vector<T>* evicted) {
     for (auto h : handles) {
         T* eid = reinterpret_cast<T*>(h->key_data);
         evicted->push_back(*eid);
+        h->free();
     }
 }
 
