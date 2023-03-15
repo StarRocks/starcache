@@ -162,6 +162,7 @@ set(STARCACHE_CORE_SRCS
     ${STARCACHE_SRC_DIR}/size_based_admission_policy.cpp
     ${STARCACHE_SRC_DIR}/capacity_based_promotion_policy.cpp
     ${STARCACHE_SRC_DIR}/star_cache.cpp
+    ${STARCACHE_SRC_DIR}/star_cache_impl.cpp
 )
 add_library(starcache_core_objs OBJECT ${STARCACHE_CORE_SRCS})
 
@@ -175,7 +176,7 @@ add_library(starcache STATIC
 )
 
 set(STARCACHE_BASIC_LIBS
-	-lbfd -liberty -lc -lm -ldl -rdynamic -pthread -static-libstdc++ -static-libgcc
+    -lbfd -liberty -lc -lm -ldl -rdynamic -pthread -static-libstdc++ -static-libgcc
 )
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "ASAN")

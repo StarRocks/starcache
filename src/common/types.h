@@ -16,7 +16,6 @@
 
 #include <butil/iobuf.h>
 #include <butil/status.h>
-#include <fmt/format.h>
 
 #include <atomic>
 
@@ -30,21 +29,11 @@ using CacheKey = std::string;
 struct BlockId {
     uint8_t dir_index;
     uint32_t block_index;
-
-    std::string str() const {
-        std::string block_id = fmt::format("{}_{}", dir_index, block_index);
-        return block_id;
-    }
 };
 
 struct BlockKey {
     CacheId cache_id;
     uint32_t block_index;
-
-    std::string str() const {
-        std::string block_key = fmt::format("{}_{}", cache_id, block_index);
-        return block_key;
-    }
 };
 
 struct DirSpace {
@@ -56,6 +45,24 @@ inline std::ostream& operator<<(std::ostream& os, const BlockKey& block_key) {
     os << block_key.cache_id << "_" << block_key.block_index;
     return os;
 }
+
+struct CacheOptions {
+    // Cache Space (Required)
+    uint64_t mem_quota_bytes;
+    std::vector<DirSpace> disk_dir_spaces;
+
+    // Policy (Optional)
+    /*
+    EvictPolicy mem_evict_policy;
+    EvictPolicy disk_evict_policy;
+    AdmissionCtrlPolicy admission_ctrl_policy;
+    PromotionPolicy promotion_policy;
+    */
+
+    // Other (Optional)
+    bool checksum = false;
+    size_t block_size = 0;
+};
 
 constexpr size_t KB = 1024;
 constexpr size_t MB = KB * 1024;

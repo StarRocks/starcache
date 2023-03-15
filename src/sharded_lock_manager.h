@@ -18,6 +18,7 @@
 
 #include <shared_mutex>
 
+#include "aux_funcs.h"
 #include "common/config.h"
 #include "common/macros.h"
 
