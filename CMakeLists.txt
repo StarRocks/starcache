@@ -72,14 +72,7 @@ message(STATUS "Compiler Flags: ${CMAKE_CXX_FLAGS}")
 #### External Dependencies ####
 
 ## PROTOBUF
-set(protobuf_MODULE_COMPATIBLE TRUE)
-find_package(Protobuf CONFIG REQUIRED)
-message(STATUS "Using Protobuf version: ${Protobuf_VERSION}")
-message(STATUS "  include: ${Protobuf_INCLUDE_DIRS}")
-message(STATUS "  protoc executable: ${Protobuf_PROTOC_EXECUTABLE}")
-include_directories(${Protobuf_INCLUDE_DIRS})
-set(PROTOBUF_LIBPROTOBUF protobuf::libprotobuf)
-set(PROTOC_EXECUTABLE ${Protobuf_PROTOC_EXECUTABLE})
+find_library(PROTOBUF_LIBPROTOBUF protobuf ${PROTOBUF_LIB_DIR})
 
 ## GFLAGS
 find_package (gflags 2.2.2 REQUIRED)
@@ -251,7 +244,7 @@ include(GNUInstallDirs)
 ## install include files
 install(
     DIRECTORY ${STARCACHE_SRC_DIR}/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/starcache
     FILES_MATCHING PATTERN "*.h*"
 )
 
@@ -270,14 +263,16 @@ write_basic_package_version_file(
     COMPATIBILITY SameMajorVersion
 )
 
+set(STARCACHE_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/starcache)
+
 configure_package_config_file(
     ${PROJECT_SOURCE_DIR}/cmake/starcacheConfig.cmake.in
     ${CMAKE_CURRENT_BINARY_DIR}/starcacheConfig.cmake
-    INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+    INSTALL_DESTINATION ${STARCACHE_CMAKE_DIR}
     PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
 )
 
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/starcacheConfig.cmake
               ${CMAKE_CURRENT_BINARY_DIR}/starcacheConfigVersion.cmake
-        DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake
+              DESTINATION ${STARCACHE_CMAKE_DIR}
 )

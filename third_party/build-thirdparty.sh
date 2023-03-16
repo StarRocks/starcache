@@ -74,7 +74,19 @@ check_if_done()
     local name=$1
     local installprefix=$2
     done_file="${name}_DONE"
-    test -f "$installprefix/${!done_file}"
+
+	OLD_IFS="$IFS"
+	IFS=";"
+	files=($done_file)
+	IFS="$OLD_IFS"
+
+	for file in ${files[@]}
+	do
+        if test -f "$installprefix/${!file}"
+        then
+            break
+        fi
+	done
 }
 
 # check_todo_third_party <install_prefix> <archive1> <archive2> ... <archiveN>
@@ -295,7 +307,7 @@ cmake_build()
         # detect name confliction
         build_dir=tmp-build
     fi
-    rm -rf $build_dir/ CMakeCache.tx
+    rm -rf $build_dir/ CMakeCache.txt
     echo $CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
     $CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
 
