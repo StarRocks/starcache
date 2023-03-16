@@ -53,6 +53,6 @@ DEFINE_uint32(io_align_unit_size, 4096, "The unit size for direct io alignment")
 
 DEFINE_uint32(access_index_shard_bits, 5, "The shard bits of access index hashmap");  // 32 shards
 DEFINE_uint32(sharded_lock_shard_bits, 12, "The shard bits of sharded lock manager"); // 4096 shards
-DEFINE_uint32(lru_container_shard_bits, 6, "The shard bits of lru container");        // 64 shards
+DEFINE_uint32(lru_container_shard_bits, 5, "The shard bits of lru container");        // 32 shards
 
 } // namespace starrocks::starcache::config

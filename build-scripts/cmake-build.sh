@@ -144,13 +144,16 @@ INSTALL_DIR_PREFIX=$OLD_INSTALL_DIR_PREFIX
 popd
 
 CMAKE_BUILD_DIR=build/build_${CMAKE_BUILD_TYPE}
-STARCACHE_INSTALL_DIR=$INSTALL_DIR_PREFIX/starcache_installed
+
+if [ -z "${STARCACHE_INSTALL_DIR}" ] ; then
+    STARCACHE_INSTALL_DIR=$INSTALL_DIR_PREFIX/starcache_installed
+fi
+
 mkdir -p ${CMAKE_BUILD_DIR}
 mkdir -p ${STARCACHE_INSTALL_DIR}
 
 if [ ${CLEAN} -eq 1  ]; then
     rm -rf ${CMAKE_BUILD_DIR}
-    rm -rf ${STARCACHE_INSTALL_DIR}
 fi
 
 cmake -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                \
@@ -163,9 +166,9 @@ cmake -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                
       -DGTest_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/GTest                                 \
       -Dglog_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/glog/                                  \
       -Dgflags_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/gflags/                              \
-      -DProtobuf_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/protobuf                           \
       -DZLIB_INCLUDE_DIR=${THIRD_PARTY_INSTALL_PREFIX}/                                         \
       -DZLIB_LIBRARY=${THIRD_PARTY_INSTALL_PREFIX}/lib/libz.a                                   \
+      -DPROTOBUF_LIB_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib                                      \
       -DBRPC_LIB_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib                                          \
       -Dfmt_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/fmt/                                    \
       -DBOOST_ROOT=${THIRD_PARTY_INSTALL_PREFIX}                                                \

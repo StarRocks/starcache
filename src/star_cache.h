@@ -14,33 +14,11 @@
 
 #pragma once
 
-#include "disk_cache.h"
-#include "mem_cache.h"
+#include "common/types.h"
 
 namespace starrocks::starcache {
 
-struct CacheOptions {
-    // Cache Space (Required)
-    uint64_t mem_quota_bytes;
-    std::vector<DirSpace> disk_dir_spaces;
-
-    // Policy (Optional)
-    /*
-    EvictPolicy mem_evict_policy;
-    EvictPolicy disk_evict_policy;
-    AdmissionCtrlPolicy admission_ctrl_policy;
-    PromotionPolicy promotion_policy;
-    */
-
-    // Other (Optional)
-    bool checksum = config::FLAGS_enable_disk_checksum;
-    size_t block_size = config::FLAGS_block_size;
-};
-
-class AccessIndex;
-class AdmissionPolicy;
-class PromotionPolicy;
-
+class StarCacheImpl;
 class StarCache {
 public:
     StarCache();
@@ -82,35 +60,7 @@ public:
     Status unpin(const std::string& cache_key) { return Status::OK(); }
 
 private:
-    static size_t _continuous_segments_size(const std::vector<BlockSegmentPtr>& segments);
-
-    Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf);
-    void _remove_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
-
-    Status _write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf);
-    Status _read_block(CacheItemPtr cache_item, const BlockKey& block_key, off_t offset, size_t size, IOBuf* buf);
-
-    Status _flush_block(CacheItemPtr cache_item, const BlockKey& block_key);
-    Status _flush_block_segments(CacheItemPtr cache_item, const BlockKey& block_key,
-                                 const std::vector<BlockSegmentPtr>& segments);
-    void _promote_block_segments(CacheItemPtr cache_item, const BlockKey& block_key,
-                                 const std::vector<BlockSegment>& segments);
-
-    void _evict_mem_block(size_t size);
-    void _evict_for_mem_block(const BlockKey& block_key, size_t size);
-    void _evict_for_disk_block(const CacheId& cache_id, size_t size);
-    void _process_evicted_mem_blocks(const std::vector<BlockKey>& evicted);
-    void _process_evicted_disk_items(const std::vector<CacheId>& evicted);
-
-    CacheItemPtr _alloc_cache_item(const std::string& cache_key, size_t size, uint64_t expire_time);
-    BlockSegmentPtr _alloc_block_segment(const BlockKey& block_key, off_t offset, uint32_t size, const IOBuf& buf);
-    DiskBlockPtr _alloc_disk_block(const BlockKey& block_key);
-
-    std::unique_ptr<MemCache> _mem_cache = nullptr;
-    std::unique_ptr<DiskCache> _disk_cache = nullptr;
-    AccessIndex* _access_index = nullptr;
-    AdmissionPolicy* _admission_policy = nullptr;
-    PromotionPolicy* _promotion_policy = nullptr;
+    StarCacheImpl* _cache_impl = nullptr;
 };
 
 } // namespace starrocks::starcache

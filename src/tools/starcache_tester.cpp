@@ -26,6 +26,7 @@
 #include <memory>
 #include <numeric>
 #include <thread>
+#include <shared_mutex>
 
 #include "star_cache.h"
 #include "utils/blocking_queue.hpp"
@@ -115,7 +116,7 @@ public:
             check_and_create_dir(local_path.parent_path().string(), true);
         }
         write_file(keyfile, buf);
-        STAR_VLOG << "write object to local store success, key: " << key << ", buf len: " << buf.size();
+        LOG(INFO) << "write object to local store success, key: " << key << ", buf len: " << buf.size();
         return Status::OK();
     }
 
@@ -133,7 +134,7 @@ public:
         CHECK_GE(ret, 0) << "fail to read file:" << keyfile << ", err: " << std::strerror(errno);
         buf->append_user_data(data, ret, nullptr);
         CHECK_EQ(close(fd), 0) << "fail to close file: " << keyfile << ", err: " << std::strerror(errno);
-        STAR_VLOG << "read object from local store success, key: " << key << ", offset: " << offset
+        LOG(INFO) << "read object from local store success, key: " << key << ", offset: " << offset
                   << ", size: " << size << ", buf len: " << buf->size();
         return Status::OK();
     }
@@ -145,7 +146,7 @@ public:
             return Status(ENOENT, "no such file %s", keyfile.c_str());
         }
         CHECK(fs::remove(local_path));
-        STAR_VLOG << "remove object from local store success, key: " << key;
+        LOG(INFO) << "remove object from local store success, key: " << key;
         return Status::OK();
     }
 
