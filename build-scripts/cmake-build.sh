@@ -7,7 +7,9 @@ if [[ -z ${STARCACHE_HOME}  ]]; then
     export STARCACHE_HOME=`cd "$curdir/.."; pwd`
 fi
 
-. ${STARCACHE_HOME}/env.sh
+if [ -f ${STARCACHE_HOME}/env.sh ]; then
+    . ${STARCACHE_HOME}/env.sh
+fi
 
 # Check args
 usage() {
