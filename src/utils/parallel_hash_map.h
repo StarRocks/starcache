@@ -17,7 +17,7 @@
 #include <atomic>
 #include <shared_mutex>
 
-#include <parallel_hashmap/phmap.h>
+#include "utils/phmap/phmap.h"
 
 namespace starrocks::starcache {
 
@@ -34,15 +34,15 @@ public:
 
     void update(const K& key, const V& value) {
         _kv.try_emplace_l(
-                key, [&value](typename PMap::value_type& v) { v.second = value; }, value);
+                key, [&value](V& val) { val = value;  }, value);
     }
 
     bool find(const K& key, V* value) {
-        return _kv.if_contains(key, [value](typename PMap::value_type& v) { *value = v.second; });
+        return _kv.if_contains(key, [value](const V& val) { *value = val;  });
     }
 
     bool remove(const K& key) {
-        return _kv.erase_if(key, [](typename PMap::value_type& v) { return true; });
+        return _kv.erase_if(key, [](V& v) { return true;  });
     }
 
 private:
