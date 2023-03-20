@@ -476,16 +476,6 @@ build_rapidjson() {
     popd
 }
 
-# phmap
-build_phmap() {
-    local srcdir=$1
-    local installprefix=$2
-
-    pushd $srcdir &>/dev/null
-    cp -r ${srcdir}/parallel_hashmap ${installprefix}/include/
-    popd
-}
-
 # build_and_install_archives <src_root_dir> <archive1> <archive2> ... <archive-N>
 # * install to $TP_INSTALL_DIR
 build_and_install_archives()
