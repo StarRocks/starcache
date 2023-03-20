@@ -75,20 +75,10 @@ message(STATUS "Compiler Flags: ${CMAKE_CXX_FLAGS}")
 find_library(PROTOBUF_LIBPROTOBUF protobuf ${PROTOBUF_LIB_DIR})
 
 ## GFLAGS
-find_package (gflags 2.2.2 REQUIRED)
-message(STATUS "Using gflags version: ${gflags_VERSION}")
-message(STATUS "  include: ${gflags_INCLUDE_DIR}")
-message(STATUS "  target: ${gflags_TARGET}")
-include_directories(${gflags_INCLUDE_DIR})
-set(GFLAGS_LIB ${gflags_TARGET})
+find_library(GFLAGS_LIB gflags ${GFLAGS_LIB_DIR})
 
 ## GLOG
-find_package (glog 0.4.0 REQUIRED)
-get_target_property(glog_INCLUDE_DIR glog::glog INTERFACE_INCLUDE_DIRECTORIES)
-message(STATUS "Using glog version: ${glog_VERSION}")
-message(STATUS "  include: ${glog_INCLUDE_DIR}")
-include_directories(${glog_INCLUDE_DIR})
-set(GLOG_LIB glog::glog)
+find_library(GLOG_LIB glog ${GLOG_LIB_DIR})
 
 ## BRPC
 find_library(BRPC_LIB brpc ${BRPC_LIB_DIR})

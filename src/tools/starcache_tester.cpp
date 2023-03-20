@@ -40,6 +40,7 @@ DEFINE_uint64(remove_interval_s, 5, "The interval of seconds to remove objects")
 DEFINE_uint64(update_context_interval_s, 60, "The interval of seconds to update test context");
 DEFINE_uint64(execution_time_s, 24 * 60 * 60, "The totol time that the test executes, if 0, never stop automatically");
 DEFINE_uint64(mem_cache_quota, 10 * GB, "The quota bytes of memory cache");
+DEFINE_uint64(max_pending_writes, 100000, "Maximum object count pending to write");
 DEFINE_string(disk_cache_paths, "disk1:128;disk2:128", "The disk cache path and quota(GB)");
 DEFINE_string(object_key_prefix, "starcache_test_object", "Prefix of object keys");
 DEFINE_string(test_data_path, "test_data", "The directory path to hold all test data during the test");
@@ -195,7 +196,10 @@ const std::string DUMPS_DIR = "dumps";
 
 class StarCacheTester {
 public:
-    StarCacheTester() : _stopped(true), _obj_mutexes(FLAGS_obj_count_per_cycle) { _cur_dir = current_dir(); }
+    StarCacheTester() : _objs_to_write(FLAGS_max_pending_writes), _stopped(true)
+                      , _obj_mutexes(FLAGS_obj_count_per_cycle) {
+        _cur_dir = current_dir();
+    }
 
     std::shared_mutex& _obj_mutex(size_t obj_index) {
         uint64_t shard_count = _obj_mutexes.size();
@@ -311,7 +315,7 @@ public:
             rlck.unlock();
             if (base_res.error_code() == ENOENT) {
                 LOG(INFO) << "read an non-exist object " << key << ", try to write it to store";
-                if (!_objs_to_write.put(key)) {
+                if (!_objs_to_write.blocking_put(key)) {
                     LOG(ERROR) << "blocking queue for objects to write has been shutdown";
                     break;
                 }
@@ -449,7 +453,7 @@ private:
     }
 
     std::vector<ObjectStore*> _stores;
-    UnboundedBlockingQueue<std::string> _objs_to_write;
+    BlockingQueue<std::string> _objs_to_write;
     std::string _cur_dir;
     std::atomic<bool> _stopped;
 
