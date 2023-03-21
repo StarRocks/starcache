@@ -40,10 +40,13 @@ StarCacheImpl::~StarCacheImpl() {
 }
 
 Status StarCacheImpl::init(const CacheOptions& options) {
-    config::FLAGS_enable_disk_checksum = options.checksum;
+    _options = options;
     if (options.block_size > 0) {
         config::FLAGS_block_size = options.block_size;
+    } else {
+        _options.block_size = config::FLAGS_block_size;
     }
+    config::FLAGS_enable_disk_checksum = options.checksum;
 
     MemCacheOptions mc_options;
     mc_options.mem_quota_bytes = options.mem_quota_bytes;
@@ -71,10 +74,20 @@ Status StarCacheImpl::init(const CacheOptions& options) {
     return Status::OK();
 }
 
+const CacheOptions* StarCacheImpl::options() {
+    return &_options;
+}
+
 Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, uint64_t ttl_seconds) {
     STAR_VLOG << "set cache, cache_key: " << cache_key << ", buf size: " << buf.size() << ", ttl: " << ttl_seconds;
     if (buf.empty()) {
         return Status(E_INTERNAL, "cache value should not be empty");
+    }
+
+    auto counter_guard = _concurrent_writes_test();
+    if (!counter_guard) {
+        LOG(WARNING) << "the concurrent write size exceeds the maximum threshold, reject it";
+        return Status(EBUSY, "the cache system is busy now");
     }
 
     CacheId cache_id = cachekey2id(cache_key);
@@ -309,7 +322,7 @@ void StarCacheImpl::_remove_cache_item(const CacheId& cache_id, CacheItemPtr cac
 
 Status StarCacheImpl::_flush_block(CacheItemPtr cache_item, const BlockKey& block_key) {
     if (cache_item->is_released()) {
-        LOG(INFO) << "The block to flush is released, key: " << block_key;
+        LOG(INFO) << "the block to flush is released, key: " << block_key;
         return Status::OK();
     }
     // Hold the handle, in case that the disk cache item be evicted during the flush process
@@ -352,6 +365,13 @@ Status StarCacheImpl::_flush_block(CacheItemPtr cache_item, const BlockKey& bloc
         _remove_cache_item(block_key.cache_id, cache_item);
     }
     return Status::OK();
+}
+
+StarCacheImpl::IOCounterGuard StarCacheImpl::_concurrent_writes_test() {
+    if (UNLIKELY(_concurrent_writes + 1 > config::FLAGS_max_concurrent_writes)) {
+        return nullptr;
+    }
+    return std::make_shared<IOCounter>(_concurrent_writes, 1);
 }
 
 size_t StarCacheImpl::_continuous_segments_size(const std::vector<BlockSegmentPtr>& segments) {

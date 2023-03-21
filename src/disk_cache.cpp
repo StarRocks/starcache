@@ -160,4 +160,13 @@ size_t DiskCache::used_bytes() const {
     return _space_manager->used_bytes();
 }
 
+std::vector<DirSpace> DiskCache::dir_spaces() const {
+    auto& cache_dirs = _space_manager->cache_dirs();
+    std::vector<DirSpace> spaces;
+    for (auto& dir : cache_dirs) {
+        spaces.push_back({.path = dir->path(), .quota_bytes = dir->quota_bytes()});
+    }
+    return spaces;
+}
+
 } // namespace starrocks::starcache

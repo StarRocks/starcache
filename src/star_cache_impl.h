@@ -30,6 +30,8 @@ public:
 
     Status init(const CacheOptions& options);
 
+    const CacheOptions* options();
+
     Status set(const std::string& cache_key, const IOBuf& buf, uint64_t ttl_seconds);
 
     Status get(const std::string& cache_key, IOBuf* buf);
@@ -39,6 +41,23 @@ public:
     Status remove(const std::string& cache_key);
 
 private:
+    struct IOCounter {
+        IOCounter(std::atomic<size_t>& counter, size_t delta_value)
+            : _counter(counter), _delta_value(delta_value) {
+                _counter += delta_value;
+            }
+        ~IOCounter() {
+            _counter -= _delta_value;
+        }
+
+    private:
+        std::atomic<size_t>& _counter;
+        size_t _delta_value = 0;
+    };
+
+    using IOCounterGuard = std::shared_ptr<IOCounter>;
+
+    IOCounterGuard _concurrent_writes_test();
     static size_t _continuous_segments_size(const std::vector<BlockSegmentPtr>& segments);
 
     Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf);
@@ -63,11 +82,14 @@ private:
     BlockSegmentPtr _alloc_block_segment(const BlockKey& block_key, off_t offset, uint32_t size, const IOBuf& buf);
     DiskBlockPtr _alloc_disk_block(const BlockKey& block_key);
 
+    CacheOptions _options;
     std::unique_ptr<MemCache> _mem_cache = nullptr;
     std::unique_ptr<DiskCache> _disk_cache = nullptr;
     AccessIndex* _access_index = nullptr;
     AdmissionPolicy* _admission_policy = nullptr;
     PromotionPolicy* _promotion_policy = nullptr;
+
+    std::atomic<size_t> _concurrent_writes = 0;
 };
 
 } // namespace starrocks::starcache
