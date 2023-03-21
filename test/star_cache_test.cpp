@@ -509,6 +509,20 @@ TEST_F(StarCacheTest, replace_cache_content) {
     }
 }
 
+TEST_F(StarCacheTest, max_concurrent_writes) {
+    CONFIG_UPDATE(uint64_t, config::FLAGS_max_concurrent_writes, 0);
+    auto cache = create_simple_cache(10 * MB, 20 * MB);
+
+    const size_t obj_size = MB;
+    const std::string cache_key = "test_file";
+    char ch = 'a';
+    IOBuf wbuf = gen_iobuf(obj_size, ch);
+    Status st;
+
+    st = cache->set(cache_key + std::to_string(0), wbuf);
+    ASSERT_EQ(st.error_code(), EBUSY) << st.error_str();
+}
+
 } // namespace starrocks::starcache
 
 int main(int argc, char** argv) {
@@ -516,6 +530,7 @@ int main(int argc, char** argv) {
 	::google::ParseCommandLineFlags(&argc, &argv, true);
   	::google::InitGoogleLogging(argv[0]);
     FLAGS_log_dir="logs";   
+    std::filesystem::create_directories(FLAGS_log_dir);
     int r = RUN_ALL_TESTS();
 	google::ShutdownGoogleLogging();
     return r;

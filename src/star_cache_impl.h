@@ -39,6 +39,23 @@ public:
     Status remove(const std::string& cache_key);
 
 private:
+    struct IOCounter {
+        IOCounter(std::atomic<size_t>& counter, size_t delta_value)
+            : _counter(counter), _delta_value(delta_value) {
+                _counter += delta_value;
+            }
+        ~IOCounter() {
+            _counter -= _delta_value;
+        }
+
+    private:
+        std::atomic<size_t>& _counter;
+        size_t _delta_value = 0;
+    };
+
+    using IOCounterGuard = std::shared_ptr<IOCounter>;
+
+    IOCounterGuard _concurrent_writes_test();
     static size_t _continuous_segments_size(const std::vector<BlockSegmentPtr>& segments);
 
     Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf);
@@ -68,6 +85,8 @@ private:
     AccessIndex* _access_index = nullptr;
     AdmissionPolicy* _admission_policy = nullptr;
     PromotionPolicy* _promotion_policy = nullptr;
+
+    std::atomic<size_t> _concurrent_writes = 0;
 };
 
 } // namespace starrocks::starcache

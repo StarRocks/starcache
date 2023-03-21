@@ -25,6 +25,8 @@ DECLARE_uint64(block_file_size);
 DECLARE_bool(pre_allocate_block_file);
 DECLARE_bool(enable_disk_checksum);
 
+DECLARE_uint64(max_concurrent_writes);
+
 DECLARE_uint32(mem_evict_times);
 DECLARE_uint32(disk_evict_times);
 
