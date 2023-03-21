@@ -132,6 +132,8 @@ public:
 
     size_t used_bytes() const { return _used_bytes; }
 
+    std::vector<CacheDirPtr>& cache_dirs() { return _cache_dirs; }
+
     void reset() {
         _quota_bytes = 0;
         _used_bytes = 0;

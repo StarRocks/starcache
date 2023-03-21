@@ -81,6 +81,9 @@ public:
     // Get the disk cache usage (in bytes)
     size_t used_bytes() const;
 
+    // Get the disk spaces
+    std::vector<DirSpace> dir_spaces() const;
+
 private:
     void _update_block_checksum(DiskBlockPtr block, const BlockSegment& segment) const;
 
