@@ -27,6 +27,9 @@ public:
     // Init the starcache instance with given options
     Status init(const CacheOptions& options);
 
+    // Get the starcache options
+    const CacheOptions* options();
+
     // Set the whole cache object.
     // If the `cache_key` exists, replace the cache data.
     // If the `ttl_seconds` is 0 (default), no ttl restriction will be set.
