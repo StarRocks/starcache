@@ -24,6 +24,9 @@ DEFINE_uint64(block_file_size, 10737418240,
 DEFINE_bool(pre_allocate_block_file, false, "Whether to pre-allocate the the block file to the target size");
 DEFINE_bool(enable_disk_checksum, true, "Whether to do checksum to check the data correctness read from disk");
 
+DEFINE_uint64(max_concurrent_writes, 1500000,
+              "The maximum concurrent write count, to avoid too many writes that affect write latency");
+
 DEFINE_uint32(mem_evict_times, 2, "The times of target size that need to be evicted in an memery eviction");
 DEFINE_uint32(disk_evict_times, 2, "The times of target size that need to be evicted in a disk eviction");
 
