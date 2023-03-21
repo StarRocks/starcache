@@ -30,6 +30,8 @@ public:
 
     Status init(const CacheOptions& options);
 
+    const CacheOptions* options();
+
     Status set(const std::string& cache_key, const IOBuf& buf, uint64_t ttl_seconds);
 
     Status get(const std::string& cache_key, IOBuf* buf);
@@ -80,6 +82,7 @@ private:
     BlockSegmentPtr _alloc_block_segment(const BlockKey& block_key, off_t offset, uint32_t size, const IOBuf& buf);
     DiskBlockPtr _alloc_disk_block(const BlockKey& block_key);
 
+    CacheOptions _options;
     std::unique_ptr<MemCache> _mem_cache = nullptr;
     std::unique_ptr<DiskCache> _disk_cache = nullptr;
     AccessIndex* _access_index = nullptr;

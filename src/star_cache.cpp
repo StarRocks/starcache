@@ -22,6 +22,10 @@ StarCache::StarCache() {
     _cache_impl = new StarCacheImpl;
 }
 
+const CacheOptions* StarCache::options() {
+    return _cache_impl->options();
+}
+
 StarCache::~StarCache() {
     delete _cache_impl;
 }
