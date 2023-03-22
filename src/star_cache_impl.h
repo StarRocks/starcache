@@ -40,28 +40,24 @@ public:
 
     Status remove(const std::string& cache_key);
 
+    Status pin(const std::string& cache_key);
+
+    Status unpin(const std::string& cache_key);
+
+    bool has_disk_layer() {
+        STATIC_EXCEPT_UT bool has_disk = _options.disk_dir_spaces.size() > 0;
+        return has_disk;
+    }
+
 private:
-    struct IOCounter {
-        IOCounter(std::atomic<size_t>& counter, size_t delta_value)
-            : _counter(counter), _delta_value(delta_value) {
-                _counter += delta_value;
-            }
-        ~IOCounter() {
-            _counter -= _delta_value;
-        }
-
-    private:
-        std::atomic<size_t>& _counter;
-        size_t _delta_value = 0;
-    };
-
-    using IOCounterGuard = std::shared_ptr<IOCounter>;
-
-    IOCounterGuard _concurrent_writes_test();
     static size_t _continuous_segments_size(const std::vector<BlockSegmentPtr>& segments);
 
+    Status _write_cache_item(const CacheId& cache_id, const CacheKey& cache_key, const IOBuf& buf,
+                             uint64_t ttl_seconds);
     Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf);
     void _remove_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
+    Status _pin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
+    Status _unpin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
 
     Status _write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf);
     Status _read_block(CacheItemPtr cache_item, const BlockKey& block_key, off_t offset, size_t size, IOBuf* buf);

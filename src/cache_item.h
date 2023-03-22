@@ -21,7 +21,7 @@
 
 namespace starrocks::starcache {
 
-enum CacheState { IN_MEM, IN_DISK, RELEASED };
+enum CacheState { PINNED, RELEASED };
 
 struct CacheItem {
     // An unique id generated internally
@@ -29,15 +29,15 @@ struct CacheItem {
     // A key string passed by api
     CacheKey cache_key;
     // The block lists belong to this cache item
-    BlockItem* blocks;
+    BlockItem* blocks = nullptr;
     // The cache object size
-    size_t size;
+    size_t size = 0;
     // The expire time of this cache item
-    uint64_t expire_time;
+    uint64_t expire_time = 0;
 
     CacheItem() = default;
     CacheItem(const CacheKey& cache_key_, size_t size_, uint64_t expire_time_)
-            : cache_key(cache_key_), size(size_), expire_time(expire_time_), _state(0) {
+            : cache_key(cache_key_), size(size_), expire_time(expire_time_) {
         blocks = new BlockItem[block_count()];
     }
     ~CacheItem() { delete[] blocks; }
@@ -70,42 +70,24 @@ struct CacheItem {
         return _state;
     }
 
-    bool is_in_mem() {
-        std::shared_lock<std::shared_mutex> rlck(_mutex);
-        return _state & (1ul << IN_MEM);
+    bool set_pinned(bool pinned) {
+        std::unique_lock<std::shared_mutex> wlck(_mutex);
+        return _set_state_value(PINNED, pinned);
     }
 
-    bool is_in_disk() {
+    bool is_pinned() {
         std::shared_lock<std::shared_mutex> rlck(_mutex);
-        return _state & (1ul << IN_DISK);
+        return _state & (1ul << PINNED);
     }
 
-    void clear_mem_blocks() {
-        std::shared_lock<std::shared_mutex> rlck(_mutex);
-        for (size_t i = 0; i < block_count(); ++i) {
-            blocks[i].mem_block_item = nullptr;
-        }
-    }
-
-    void clear_disk_blocks() {
-        std::shared_lock<std::shared_mutex> rlck(_mutex);
-        for (size_t i = 0; i < block_count(); ++i) {
-            blocks[i].disk_block_item = nullptr;
-        }
+    bool set_released(bool released) {
+        std::unique_lock<std::shared_mutex> wlck(_mutex);
+        return _set_state_value(RELEASED, released);
     }
 
     bool is_released() {
         std::shared_lock<std::shared_mutex> rlck(_mutex);
         return _state & (1ul << RELEASED);
-    }
-
-    bool release() {
-        std::unique_lock<std::shared_mutex> wlck(_mutex);
-        if (_state & (1ul << RELEASED)) {
-            return false;
-        }
-        _state |= (1ul << RELEASED);
-        return true;
     }
 
     bool release_if_empty() {
@@ -123,9 +105,41 @@ struct CacheItem {
         return true;
     }
 
+
+    void clear_mem_blocks() {
+        std::shared_lock<std::shared_mutex> rlck(_mutex);
+        for (size_t i = 0; i < block_count(); ++i) {
+            blocks[i].mem_block_item = nullptr;
+        }
+    }
+
+    void clear_disk_blocks() {
+        std::shared_lock<std::shared_mutex> rlck(_mutex);
+        for (size_t i = 0; i < block_count(); ++i) {
+            blocks[i].disk_block_item = nullptr;
+        }
+    }
+
 private:
+    bool _set_state_value(CacheState state, bool value) {
+        uint8_t mask = 1u << state;
+        bool is_set = _state & mask;
+        if (value) {
+            if (is_set) {
+                return false;
+            }
+            _state |= mask;
+        } else {
+            if (!is_set) {
+                return false;
+            }
+            _state &= ~mask;
+        }
+        return true;
+    }
+
     // Indicate current state
-    uint8_t _state;
+    uint8_t _state = 0;
     std::shared_mutex _mutex;
 };
 

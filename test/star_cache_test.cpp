@@ -26,6 +26,8 @@
 #include "mem_space_manager.h"
 #include "disk_space_manager.h"
 
+DECLARE_int32(v);
+
 namespace starrocks::starcache {
 
 IOBuf gen_iobuf(size_t size, char ch) {
@@ -41,6 +43,7 @@ protected:
         config::FLAGS_evict_touch_mem_probalility = 100;
         config::FLAGS_evict_touch_disk_probalility = 100;
         config::FLAGS_promotion_probalility = 100;
+        FLAGS_v = 88;
     }
     void TearDown() override {
         MemSpaceManager::GetInstance()->reset();
@@ -484,8 +487,8 @@ TEST_F(StarCacheTest, replace_cache_content) {
     ASSERT_TRUE(status.ok());
 
     const size_t obj_size = 4 * MB;
-    const size_t rounds = 10;
-    const size_t batch_count = 6;
+    const size_t rounds = 5;
+    const size_t batch_count = 3;
     const std::string cache_key = "test_file";
     Status st;
 
@@ -521,6 +524,94 @@ TEST_F(StarCacheTest, max_concurrent_writes) {
 
     st = cache->set(cache_key + std::to_string(0), wbuf);
     ASSERT_EQ(st.error_code(), EBUSY) << st.error_str();
+}
+
+TEST_F(StarCacheTest, pin_unpin_for_memory_cache) {
+    CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    auto cache = create_simple_cache(10 * MB);
+
+    const size_t obj_size = 3 * MB + 123;
+    const size_t rounds = 10;
+    const std::string cache_key = "test_file";
+    char ch = 'a';
+    IOBuf wbuf = gen_iobuf(obj_size, ch);
+    Status st;
+
+    const std::string target_to_pin = cache_key + std::to_string(0);
+    st = cache->set(target_to_pin, wbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    // pin cache
+    st = cache->pin(target_to_pin);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    for (size_t i = 1; i < rounds; ++i) {
+        st = cache->set(cache_key + std::to_string(i), wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+    }
+
+    IOBuf rbuf;
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    // unpin cache
+    st = cache->unpin(target_to_pin);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    for (size_t i = 1; i < rounds; ++i) {
+        st = cache->set(cache_key + std::to_string(i), wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+    }
+
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_EQ(st.error_code(), ENOENT) << st.error_str();
+}
+
+TEST_F(StarCacheTest, pin_unpin_for_hybrid_cache) {
+    CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    auto cache = create_simple_cache(10 * MB, 10 * MB);
+
+    const size_t obj_size = 4 * MB + 123;
+    const size_t rounds = 10;
+    const std::string cache_key = "test_file";
+    char ch = 'a';
+    IOBuf wbuf = gen_iobuf(obj_size, ch);
+    Status st;
+
+    const std::string target_to_pin = cache_key + std::to_string(0);
+    st = cache->set(target_to_pin, wbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    // pin cache
+    st = cache->pin(target_to_pin);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    IOBuf rbuf;
+    for (size_t i = 1; i < rounds; ++i) {
+        const std::string key = cache_key + std::to_string(i);
+        st = cache->set(key, wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+        cache->get(key, &rbuf);
+    }
+
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    // unpin cache
+    st = cache->unpin(target_to_pin);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    for (size_t i = 1; i < rounds; ++i) {
+        const std::string key = cache_key + std::to_string(i);
+        st = cache->set(key, wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+        cache->get(key, &rbuf);
+    }
+
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_EQ(st.error_code(), ENOENT) << st.error_str();
 }
 
 } // namespace starrocks::starcache

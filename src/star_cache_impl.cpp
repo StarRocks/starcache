@@ -84,11 +84,11 @@ Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, uint64_t 
         return Status(E_INTERNAL, "cache value should not be empty");
     }
 
-    auto counter_guard = _concurrent_writes_test();
-    if (!counter_guard) {
+    if (UNLIKELY(_concurrent_writes + 1 > config::FLAGS_max_concurrent_writes)) {
         LOG(WARNING) << "the concurrent write size exceeds the maximum threshold, reject it";
         return Status(EBUSY, "the cache system is busy now");
     }
+    ++_concurrent_writes;
 
     CacheId cache_id = cachekey2id(cache_key);
     CacheItemPtr cache_item = _access_index->find(cache_id);
@@ -98,10 +98,18 @@ Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, uint64_t 
         _remove_cache_item(cache_id, cache_item);
     }
 
+    Status st = _write_cache_item(cache_id, cache_key, buf, ttl_seconds);
+    --_concurrent_writes;
+    STAR_VLOG << "set cache finish, cache_key: " << cache_key << ", status: " << st.error_str();
+    return st;
+}
+
+Status StarCacheImpl::_write_cache_item(const CacheId& cache_id, const CacheKey& cache_key, const IOBuf& buf,
+                                        uint64_t ttl_seconds) {
     size_t block_size = config::FLAGS_block_size;
     size_t block_count = (buf.size() - 1) / block_size + 1;
     uint64_t expire_time = butil::monotonic_time_s() + ttl_seconds;
-    cache_item = _alloc_cache_item(cache_key, buf.size(), expire_time);
+    CacheItemPtr cache_item = _alloc_cache_item(cache_key, buf.size(), expire_time);
 
     uint32_t start_block_index = 0;
     uint32_t end_block_index = (buf.size() - 1) / block_size;
@@ -118,7 +126,6 @@ Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, uint64_t 
     }
 
     _access_index->insert(cache_id, cache_item);
-    STAR_VLOG << "set cache, cache_key: " << cache_key << " success";
     return Status::OK();
 }
 
@@ -185,7 +192,10 @@ Status StarCacheImpl::get(const CacheKey& cache_key, IOBuf* buf) {
     if (cache_item->is_released()) {
         return Status(E_INTERNAL, "the object is released");
     }
-    return _read_cache_item(cache_id, cache_item, 0, cache_item->size, buf);
+    Status st = _read_cache_item(cache_id, cache_item, 0, cache_item->size, buf);
+    STAR_VLOG << "get cache finish, cache_key: " << cache_key << ", buf_size: " << buf->size()
+              << ", status: " << st.error_str();
+    return st;
 }
 
 Status StarCacheImpl::read(const CacheKey& cache_key, off_t offset, size_t size, IOBuf* buf) {
@@ -198,7 +208,10 @@ Status StarCacheImpl::read(const CacheKey& cache_key, off_t offset, size_t size,
     if (cache_item->is_released()) {
         return Status(E_INTERNAL, "the object is released");
     }
-    return _read_cache_item(cache_id, cache_item, offset, size, buf);
+    Status st =  _read_cache_item(cache_id, cache_item, offset, size, buf);
+    STAR_VLOG << "read cache finish, cache_key: " << cache_key << ", offset:" << offset << ", size: " << size
+              << ", buf_size: " << buf->size() << ", status: " << st.error_str();
+    return st;
 }
 
 Status StarCacheImpl::_read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size,
@@ -237,8 +250,6 @@ Status StarCacheImpl::_read_cache_item(const CacheId& cache_id, CacheItemPtr cac
     if (buf->size() > size) {
         buf->pop_back(buf->size() - size);
     }
-    STAR_VLOG << "read cache success, cache_key: " << cache_item->cache_key << ", offset:" << offset
-              << ", size: " << size << ", buf_size: " << buf->size();
     return Status::OK();
 }
 
@@ -293,7 +304,7 @@ Status StarCacheImpl::remove(const CacheKey& cache_key) {
     if (!cache_item || cache_item->cache_key != cache_key) {
         return Status(ENOENT, "The target not found");
     }
-    if (!cache_item->release()) {
+    if (!cache_item->set_released(true)) {
         // The cache item has been released, return ok.
         return Status::OK();
     }
@@ -320,6 +331,81 @@ void StarCacheImpl::_remove_cache_item(const CacheId& cache_id, CacheItemPtr cac
     _disk_cache->evict_untrack(cache_id);
 }
 
+Status StarCacheImpl::pin(const std::string& cache_key) {
+    STAR_VLOG << "pin cache, cache_key: " << cache_key;
+    auto cache_id = cachekey2id(cache_key);
+    auto cache_item = _access_index->find(cache_id);
+    if (!cache_item || cache_item->cache_key != cache_key) {
+        return Status(ENOENT, "The target not found");
+    }
+    if (cache_item->is_released()) {
+        return Status(E_INTERNAL, "the object is released");
+    }
+    Status st = _pin_cache_item(cache_id, cache_item);
+    STAR_VLOG << "pin cache finish, cache_key: " << cache_key << ", status: " << st.error_str();
+    return st;
+}
+
+Status StarCacheImpl::_pin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item) {
+    // The object has been pinned before
+    if (!cache_item->set_pinned(true)) {
+        return Status::OK();
+    }
+
+    if (has_disk_layer()) {
+        _disk_cache->evict_untrack(cache_id);
+        return Status::OK();
+    }
+
+    for (uint32_t i = 0; i < cache_item->block_count(); ++i) {
+        BlockKey block_key = {cache_id, i};
+        _mem_cache->evict_untrack(block_key);
+    }
+    return Status::OK();
+}
+
+Status StarCacheImpl::unpin(const std::string& cache_key) {
+    STAR_VLOG << "unpin cache, cache_key: " << cache_key;
+    auto cache_id = cachekey2id(cache_key);
+    auto cache_item = _access_index->find(cache_id);
+    if (!cache_item || cache_item->cache_key != cache_key) {
+        return Status(ENOENT, "The target not found");
+    }
+    if (cache_item->is_released()) {
+        return Status(E_INTERNAL, "the object is released");
+    }
+    Status st = _unpin_cache_item(cache_id, cache_item);
+    STAR_VLOG << "unpin cache finish, cache_key: " << cache_key << ", status: " << st.error_str();
+    return st;
+}
+
+Status StarCacheImpl::_unpin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item) {
+    // The object is not in pinned state
+    if (!cache_item->set_pinned(false)) {
+        return Status::OK();
+    }
+
+    if (has_disk_layer()) {
+        for (uint32_t i = 0; i < cache_item->block_count(); ++i) {
+            BlockKey block_key = {cache_id, i};
+            auto rlck = block_shared_lock(block_key);
+            if (cache_item->blocks[i].disk_block(&rlck)) {
+                _disk_cache->evict_track(cache_id, cache_item->size);
+                break;
+            }
+        }
+    } else {
+        for (uint32_t i = 0; i < cache_item->block_count(); ++i) {
+            BlockKey block_key = {cache_id, i};
+            auto rlck = block_shared_lock(block_key);
+            if (cache_item->blocks[i].mem_block(&rlck)) {
+                _mem_cache->evict_track(block_key, cache_item->block_size(block_key.block_index));
+            }
+        }
+    }
+    return Status::OK();
+}
+
 Status StarCacheImpl::_flush_block(CacheItemPtr cache_item, const BlockKey& block_key) {
     if (cache_item->is_released()) {
         LOG(INFO) << "the block to flush is released, key: " << block_key;
@@ -334,7 +420,16 @@ Status StarCacheImpl::_flush_block(CacheItemPtr cache_item, const BlockKey& bloc
         return Status::OK();
     }
 
-    auto admission = _admission_policy->check_admission(cache_item, block_key);
+    BlockAdmission admission = BlockAdmission::FLUSH;
+    bool pinned = cache_item->is_pinned();
+    if (pinned) {
+        admission = has_disk_layer() ? BlockAdmission::FLUSH : BlockAdmission::SKIP;
+    } else if (!has_disk_layer()) {
+        admission = BlockAdmission::DELETE;
+    } else {
+        admission = _admission_policy->check_admission(cache_item, block_key);
+    }
+
     STAR_VLOG << "try to flush block, cache_key: " << cache_item->cache_key << ", block_key" << block_key
               << ", admisson policy: " << admission;
     do {
@@ -346,12 +441,14 @@ Status StarCacheImpl::_flush_block(CacheItemPtr cache_item, const BlockKey& bloc
                 break;
             }
             Status st = _flush_block_segments(cache_item, block_key, segments);
-            if (st.ok() && !handle) {
+            if (st.ok() && !handle && !pinned) {
                 _disk_cache->evict_track(block_key.cache_id, cache_item->size);
             }
             return st;
         } else if (admission == BlockAdmission::SKIP) {
-            _mem_cache->evict_track(block_key, cache_item->block_size(block_key.block_index));
+            if (!pinned) {
+                _mem_cache->evict_track(block_key, cache_item->block_size(block_key.block_index));
+            }
             return Status::OK();
         }
     } while (false);
@@ -365,13 +462,6 @@ Status StarCacheImpl::_flush_block(CacheItemPtr cache_item, const BlockKey& bloc
         _remove_cache_item(block_key.cache_id, cache_item);
     }
     return Status::OK();
-}
-
-StarCacheImpl::IOCounterGuard StarCacheImpl::_concurrent_writes_test() {
-    if (UNLIKELY(_concurrent_writes + 1 > config::FLAGS_max_concurrent_writes)) {
-        return nullptr;
-    }
-    return std::make_shared<IOCounter>(_concurrent_writes, 1);
 }
 
 size_t StarCacheImpl::_continuous_segments_size(const std::vector<BlockSegmentPtr>& segments) {
