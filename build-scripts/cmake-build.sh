@@ -83,28 +83,26 @@ echo "Get params:
 "
 
 # GCC is needed anyway even with clang
-if [ -z "$GCC_INSTALL_DIR" ] ; then
-    if [ -n "$STARCACHE_GCC_HOME" ] ; then
-        # reuse STARCACHE_GCC_HOME environment variable if available
-        export GCC_INSTALL_DIR=$STARCACHE_GCC_HOME
-    fi
-fi
-
-# check again
-if [ -z "$GCC_INSTALL_DIR" ] ; then
-    echo "Please set GCC_INSTALL_DIR to compiler install path"
-    exit 1
+if [ -z "${STARCACHE_GCC_HOME}" ] ; then
+    export STARCACHE_GCC_HOME=$(dirname `which gcc`)/..
 fi
 
 if [[ -z "$CC" || -z "$CXX" ]] ; then
-    which_gcc=`which gcc &>/dev/null`
-    if [[ -z "$which_gcc" || "$gcc_path" != "$GCC_INSTALL_DIR/bin/gcc" ]] ; then
+    gcc_path=`which gcc 2>/dev/null`
+    if [[ -n "${STARCACHE_GCC_HOME}" && "$gcc_path" != "${STARCACHE_GCC_HOME}/bin/gcc"  ]] ; then
         # ensure get the right gcc/g++
-        export PATH=$GCC_INSTALL_DIR/bin:$PATH
+        export PATH=${STARCACHE_GCC_HOME}/bin:$PATH
+        export LD_LIBRARY_PATH="${STARCACHE_GCC_HOME}/lib:$STARCACHE_GCC_HOME/lib64:$LD_LIBRARY_PATH"
     fi
     # force cmake use gcc/g++ instead of default cc/c++
     export CC=gcc
     export CXX=g++
+fi
+
+if [ -n "${STARCACHE_CMAKE_HOME}" ] ; then
+    export PATH=${STARCACHE_CMAKE_HOME}/bin:$PATH
+    echo "cmake version: $(cmake --version)"
+    echo "cmake path: $(which cmake)"
 fi
 
 if [ -z "${INSTALL_DIR_PREFIX}" ]; then
@@ -133,8 +131,6 @@ else
     THIRD_PARTY_INSTALL_PREFIX=${STARCACHE_THIRDPARTY}
 fi
 
-export LD_LIBRARY_PATH="$GCC_INSTALL_DIR/lib:$GCC_INSTALL_DIR/lib64:$LD_LIBRARY_PATH"
-
 PARALLEL=${PARALLEL:-$[$(nproc)/4+1]}
 
 # external depdendencies should be added to third-party/build-thirdparty.sh
@@ -145,18 +141,18 @@ INSTALL_DIR_PREFIX=$THIRD_PARTY_INSTALL_PREFIX ./build-thirdparty.sh || exit 1
 INSTALL_DIR_PREFIX=$OLD_INSTALL_DIR_PREFIX
 popd
 
-CMAKE_BUILD_DIR=build/build_${CMAKE_BUILD_TYPE}
+CMAKE_BUILD_DIR=${STARCACHE_HOME}/build/build_${CMAKE_BUILD_TYPE}
 
 if [ -z "${STARCACHE_INSTALL_DIR}" ] ; then
     STARCACHE_INSTALL_DIR=$INSTALL_DIR_PREFIX/starcache_installed
 fi
 
-mkdir -p ${CMAKE_BUILD_DIR}
-mkdir -p ${STARCACHE_INSTALL_DIR}
-
 if [ ${CLEAN} -eq 1  ]; then
     rm -rf ${CMAKE_BUILD_DIR}
 fi
+
+mkdir -p ${CMAKE_BUILD_DIR}
+mkdir -p ${STARCACHE_INSTALL_DIR}
 
 cmake -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                \
 	  -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} 													\
