@@ -83,28 +83,25 @@ echo "Get params:
 "
 
 # GCC is needed anyway even with clang
-if [ -z "$GCC_INSTALL_DIR" ] ; then
-    if [ -n "$STARCACHE_GCC_HOME" ] ; then
-        # reuse STARCACHE_GCC_HOME environment variable if available
-        export GCC_INSTALL_DIR=$STARCACHE_GCC_HOME
-    fi
-fi
-
-# check again
-if [ -z "$GCC_INSTALL_DIR" ] ; then
-    echo "Please set GCC_INSTALL_DIR to compiler install path"
-    exit 1
+if [ -z "${STARCACHE_GCC_HOME}" ] ; then
+    export STARCACHE_GCC_HOME=$(dirname `which gcc`)/..
 fi
 
 if [[ -z "$CC" || -z "$CXX" ]] ; then
-    which_gcc=`which gcc &>/dev/null`
-    if [[ -z "$which_gcc" || "$gcc_path" != "$GCC_INSTALL_DIR/bin/gcc" ]] ; then
+    gcc_path=`which gcc 2>/dev/null`
+    if [[ -n "${STARCACHE_GCC_HOME}" && "$gcc_path" != "${STARCACHE_GCC_HOME}/bin/gcc"  ]] ; then
         # ensure get the right gcc/g++
-        export PATH=$GCC_INSTALL_DIR/bin:$PATH
+        export PATH=${STARCACHE_GCC_HOME}/bin:$PATH
+        export LD_LIBRARY_PATH="${STARCACHE_GCC_HOME}/lib:$STARCACHE_GCC_HOME/lib64:$LD_LIBRARY_PATH"
     fi
     # force cmake use gcc/g++ instead of default cc/c++
     export CC=gcc
     export CXX=g++
+fi
+
+if [ -n "${STARCACHE_CMAKE_HOME}" ] ; then
+    export PATH=${STARCACHE_CMAKE_HOME}/bin:$PATH
+    echo "cmake version: $(cmake --version)"
 fi
 
 if [ -z "${INSTALL_DIR_PREFIX}" ]; then
@@ -132,8 +129,6 @@ if [ -z "${STARCACHE_THIRDPARTY}" ] ; then
 else
     THIRD_PARTY_INSTALL_PREFIX=${STARCACHE_THIRDPARTY}
 fi
-
-export LD_LIBRARY_PATH="$GCC_INSTALL_DIR/lib:$GCC_INSTALL_DIR/lib64:$LD_LIBRARY_PATH"
 
 PARALLEL=${PARALLEL:-$[$(nproc)/4+1]}
 
