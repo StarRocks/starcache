@@ -99,10 +99,15 @@ if [[ -z "$CC" || -z "$CXX" ]] ; then
     export CXX=g++
 fi
 
-if [ -n "${STARCACHE_CMAKE_HOME}" ] ; then
-    export PATH=${STARCACHE_CMAKE_HOME}/bin:$PATH
-    echo "cmake version: $(cmake --version)"
+if [ -z "${STARCACHE_CMAKE_CMD}" ]; then
+    if [ -n "${STARCACHE_CMAKE_HOME}" ] ; then
+        export PATH=${STARCACHE_CMAKE_HOME}/bin:$PATH
+    fi
+    export STARCACHE_CMAKE_CMD=cmake
 fi
+
+echo "STARCACHE_CMAKE_CMD path: ${STARCACHE_CMAKE_CMD}"
+echo "STARCACHE_CMAKE_CMD version: `${STARCACHE_CMAKE_CMD} --version`"
 
 if [ -z "${INSTALL_DIR_PREFIX}" ]; then
     INSTALL_DIR_PREFIX=${STARCACHE_HOME}/third_party/installed
@@ -153,7 +158,10 @@ if [ ${CLEAN} -eq 1  ]; then
     rm -rf ${CMAKE_BUILD_DIR}
 fi
 
-cmake -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                \
+mkdir -p ${CMAKE_BUILD_DIR}
+mkdir -p ${STARCACHE_INSTALL_DIR}
+
+$STARCACHE_CMAKE_CMD -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                 \
 	  -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} 													\
 	  -DWITH_TESTS=${WITH_TESTS} 																\
 	  -DWITH_TOOLS=${WITH_TOOLS} 																\
