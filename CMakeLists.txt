@@ -71,21 +71,31 @@ message(STATUS "Compiler Flags: ${CMAKE_CXX_FLAGS}")
 
 #### External Dependencies ####
 
+FUNCTION(SEARCH_LIBRARY RESULT LIB_NAME)
+    find_library(${RESULT} ${LIB_NAME} ${thirdparty_DIR}/lib)
+    if(NOT ${RESULT})
+        find_library(${RESULT} ${LIB_NAME} ${thirdparty_DIR}/lib64)
+    endif()
+ENDFUNCTION()
+
 ## PROTOBUF
-find_library(PROTOBUF_LIBPROTOBUF protobuf ${PROTOBUF_LIB_DIR})
+SEARCH_LIBRARY(PROTOBUF_LIBPROTOBUF protobuf)
 
 ## GFLAGS
-find_library(GFLAGS_LIB gflags ${GFLAGS_LIB_DIR})
+SEARCH_LIBRARY(GFLAGS_LIB gflags)
 
 ## GLOG
-find_library(GLOG_LIB glog ${GLOG_LIB_DIR})
+SEARCH_LIBRARY(GLOG_LIB glog)
 
 ## BRPC
-find_library(BRPC_LIB brpc ${BRPC_LIB_DIR})
+SEARCH_LIBRARY(BRPC_LIB brpc)
 
 ## SSL
-find_library(SSL_LIB ssl ${OPENSSL_ROOT_DIR})
-find_library(CRYPTO_LIB crypto ${OPENSSL_ROOT_DIR})
+SEARCH_LIBRARY(SSL_LIB ssl)
+SEARCH_LIBRARY(CRYPTO_LIB crypto)
+
+## FMT
+SEARCH_LIBRARY(FMT_LIB fmt)
 
 ## BOOST
 set(Boost_USE_STATIC_LIBS ON)
@@ -101,14 +111,6 @@ message(STATUS "  include: ${Boost_INCLUDE_DIRS}")
 message(STATUS "  libs: ${Boost_LIBRARIES}")
 include_directories(${Boost_INCLUDE_DIRS})
 set(BOOST_LIB ${Boost_LIBRARIES})
-
-## FMT
-find_package (fmt 7.0.3 REQUIRED)
-message(STATUS "Using fmt version: ${fmt_VERSION}")
-message(STATUS "  include: ${fmt_INCLUDE_DIR}")
-message(STATUS "  libs: ${fmt_LIBRARIES}")
-include_directories(${fmt_INCLUDE_DIR})
-set(FMT_LIB fmt::fmt)
 
 ## include third_party/include
 include_directories(${thirdparty_DIR/include})

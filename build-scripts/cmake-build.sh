@@ -158,19 +158,13 @@ fi
 mkdir -p ${CMAKE_BUILD_DIR}
 mkdir -p ${STARCACHE_INSTALL_DIR}
 
-$STARCACHE_CMAKE_CMD -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                                \
+$STARCACHE_CMAKE_CMD -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                 \
 	  -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} 													\
 	  -DWITH_TESTS=${WITH_TESTS} 																\
 	  -DWITH_TOOLS=${WITH_TOOLS} 																\
 	  -DWITH_COVERAGE=OFF																		\
-      -DOPENSSL_ROOT_DIR=${THIRD_PARTY_INSTALL_PREFIX}                                          \
       -DOPENSSL_USE_STATIC_LIBS=TRUE                                                            \
       -DGTest_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/GTest                                 \
-      -DGFLAGS_LIB_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib                                        \
-      -DGLOG_LIB_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib                                          \
-      -DPROTOBUF_LIB_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib                                      \
-      -DBRPC_LIB_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib                                          \
-      -Dfmt_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/fmt/                                    \
       -DBOOST_ROOT=${THIRD_PARTY_INSTALL_PREFIX}                                                \
       -Dthirdparty_DIR=${THIRD_PARTY_INSTALL_PREFIX}/                                           \
       ${STARCACHE_TEST_COVERAGE:+"-Dstarcache_BUILD_COVERAGE=$STARCACHE_TEST_COVERAGE"}         \
