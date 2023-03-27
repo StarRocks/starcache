@@ -14,6 +14,7 @@
 
 #pragma once
 
+#include "common/config.h"
 #include "common/types.h"
 
 namespace starrocks::starcache {
