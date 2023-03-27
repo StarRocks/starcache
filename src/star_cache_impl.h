@@ -32,11 +32,11 @@ public:
 
     const CacheOptions* options();
 
-    Status set(const std::string& cache_key, const IOBuf& buf, uint64_t ttl_seconds);
+    Status set(const std::string& cache_key, const IOBuf& buf, WriteOptions* options);
 
-    Status get(const std::string& cache_key, IOBuf* buf);
+    Status get(const std::string& cache_key, IOBuf* buf, ReadOptions* options);
 
-    Status read(const std::string& cache_key, off_t offset, size_t size, IOBuf* buf);
+    Status read(const std::string& cache_key, off_t offset, size_t size, IOBuf* buf, ReadOptions* options);
 
     Status remove(const std::string& cache_key);
 
@@ -53,14 +53,16 @@ private:
     static size_t _continuous_segments_size(const std::vector<BlockSegmentPtr>& segments);
 
     Status _write_cache_item(const CacheId& cache_id, const CacheKey& cache_key, const IOBuf& buf,
-                             uint64_t ttl_seconds);
-    Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf);
+                             WriteOptions* options);
+    Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf,
+                            ReadOptions* options);
     void _remove_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
     Status _pin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
     Status _unpin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
 
-    Status _write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf);
-    Status _read_block(CacheItemPtr cache_item, const BlockKey& block_key, off_t offset, size_t size, IOBuf* buf);
+    Status _write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf, WriteOptions* options);
+    Status _read_block(CacheItemPtr cache_item, const BlockKey& block_key, off_t offset, size_t size, IOBuf* buf,
+                       ReadOptions* options);
 
     Status _flush_block(CacheItemPtr cache_item, const BlockKey& block_key);
     Status _flush_block_segments(CacheItemPtr cache_item, const BlockKey& block_key,

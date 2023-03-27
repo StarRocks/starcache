@@ -78,8 +78,11 @@ const CacheOptions* StarCacheImpl::options() {
     return &_options;
 }
 
-Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, uint64_t ttl_seconds) {
-    STAR_VLOG << "set cache, cache_key: " << cache_key << ", buf size: " << buf.size() << ", ttl: " << ttl_seconds;
+Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, WriteOptions* options) {
+    STAR_VLOG << "set cache, cache_key: " << cache_key << ", buf size: " << buf.size();
+    if (options) {
+        STAR_VLOG << " options: " << options;
+    }
     if (buf.empty()) {
         return Status(E_INTERNAL, "cache value should not be empty");
     }
@@ -92,24 +95,34 @@ Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, uint64_t 
 
     CacheId cache_id = cachekey2id(cache_key);
     CacheItemPtr cache_item = _access_index->find(cache_id);
+    Status st;
     if (cache_item) {
-        // TODO: Replace the target data directly.
-        STAR_VLOG << "remove old cache for update, cache_key: " << cache_key;
-        _remove_cache_item(cache_id, cache_item);
+        if (!options || options->overwrite) {
+            // TODO: Replace the target data directly.
+            STAR_VLOG << "remove old cache for update, cache_key: " << cache_key;
+            _remove_cache_item(cache_id, cache_item);
+        } else {
+            STAR_VLOG << "the cache object already exists, skipped, cache_key: " << cache_key;
+            st.set_error(EEXIST, "the cache object already exists") ;
+        }
     }
-
-    Status st = _write_cache_item(cache_id, cache_key, buf, ttl_seconds);
+    if (st.ok()) {
+        st = _write_cache_item(cache_id, cache_key, buf, options);
+    }
     --_concurrent_writes;
     STAR_VLOG << "set cache finish, cache_key: " << cache_key << ", status: " << st.error_str();
     return st;
 }
 
 Status StarCacheImpl::_write_cache_item(const CacheId& cache_id, const CacheKey& cache_key, const IOBuf& buf,
-                                        uint64_t ttl_seconds) {
+                                        WriteOptions* options) {
     size_t block_size = config::FLAGS_block_size;
     size_t block_count = (buf.size() - 1) / block_size + 1;
-    uint64_t expire_time = butil::monotonic_time_s() + ttl_seconds;
+    uint64_t expire_time = butil::monotonic_time_s() + (options ? options->ttl_seconds : 0);
     CacheItemPtr cache_item = _alloc_cache_item(cache_key, buf.size(), expire_time);
+    if (options && options->pinned) {
+        cache_item->set_pinned(true);
+    }
 
     uint32_t start_block_index = 0;
     uint32_t end_block_index = (buf.size() - 1) / block_size;
@@ -122,17 +135,18 @@ Status StarCacheImpl::_write_cache_item(const CacheId& cache_id, const CacheKey&
         } else {
             seg_buf = buf;
         }
-        RETURN_IF_ERROR(_write_block(cache_item, block_key, seg_buf));
+        RETURN_IF_ERROR(_write_block(cache_item, block_key, seg_buf, options));
     }
 
     _access_index->insert(cache_id, cache_item);
     return Status::OK();
 }
 
-Status StarCacheImpl::_write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf) {
+Status StarCacheImpl::_write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf,
+                                   WriteOptions* options) {
     BlockItem& block = cache_item->blocks[block_key.block_index];
     auto wlck = block_unique_lock(block_key);
-    auto location = _promotion_policy->check_write(cache_item, block_key);
+    auto location = _promotion_policy->check_write(cache_item, block_key, options);
 
     STAR_VLOG << "write block to " << location << ", cache_key: " << cache_item->cache_key
               << ", block_key: " << block_key << ", buf size: " << buf.size();
@@ -159,7 +173,9 @@ Status StarCacheImpl::_write_block(CacheItemPtr cache_item, const BlockKey& bloc
         auto mem_block = _mem_cache->new_block_item(block_key, BlockState::DIRTY, true);
         RETURN_IF_ERROR(_mem_cache->write_block(block_key, mem_block, {segment}));
         block.set_mem_block(mem_block, &wlck);
-        _mem_cache->evict_track(block_key, cache_item->block_size(block_key.block_index));
+        if (!options || !options->pinned || has_disk_layer()) {
+            _mem_cache->evict_track(block_key, cache_item->block_size(block_key.block_index));
+        }
     } else if (location == BlockLocation::DISK) {
         // allocate block and evict
         auto disk_block = _alloc_disk_block(block_key);
@@ -170,8 +186,9 @@ Status StarCacheImpl::_write_block(CacheItemPtr cache_item, const BlockKey& bloc
         RETURN_IF_ERROR(_disk_cache->write_block(block_key.cache_id, disk_block, segment));
 
         block.set_disk_block(disk_block, &wlck);
-        // If the cache has been added to eviction component before, the `add` operation will do nothing.
-        _disk_cache->evict_track(block_key.cache_id, cache_item->size);
+        if (!options || !options->pinned) {
+            _disk_cache->evict_track(block_key.cache_id, cache_item->size);
+        }
 
     } else {
         LOG(ERROR) << "write block is rejected for overload, cache_key: " << cache_item->cache_key
@@ -182,40 +199,41 @@ Status StarCacheImpl::_write_block(CacheItemPtr cache_item, const BlockKey& bloc
     return Status::OK();
 }
 
-Status StarCacheImpl::get(const CacheKey& cache_key, IOBuf* buf) {
+Status StarCacheImpl::get(const CacheKey& cache_key, IOBuf* buf, ReadOptions* options) {
     STAR_VLOG << "get cache, cache_key: " << cache_key;
+    if (options) {
+        STAR_VLOG << " options: " << options;
+    }
     auto cache_id = cachekey2id(cache_key);
     auto cache_item = _access_index->find(cache_id);
-    if (!cache_item || cache_item->cache_key != cache_key) {
+    if (!cache_item || cache_item->cache_key != cache_key || cache_item->is_released()) {
         return Status(ENOENT, "The target not found");
     }
-    if (cache_item->is_released()) {
-        return Status(E_INTERNAL, "the object is released");
-    }
-    Status st = _read_cache_item(cache_id, cache_item, 0, cache_item->size, buf);
+    Status st = _read_cache_item(cache_id, cache_item, 0, cache_item->size, buf, options);
     STAR_VLOG << "get cache finish, cache_key: " << cache_key << ", buf_size: " << buf->size()
               << ", status: " << st.error_str();
     return st;
 }
 
-Status StarCacheImpl::read(const CacheKey& cache_key, off_t offset, size_t size, IOBuf* buf) {
+Status StarCacheImpl::read(const CacheKey& cache_key, off_t offset, size_t size, IOBuf* buf,
+                           ReadOptions* options) {
     STAR_VLOG << "read cache, cache_key: " << cache_key << ", offset: " << offset << ", size: " << size;
+    if (options) {
+        STAR_VLOG << " options: " << options;
+    }
     auto cache_id = cachekey2id(cache_key);
     auto cache_item = _access_index->find(cache_id);
-    if (!cache_item || cache_item->cache_key != cache_key) {
+    if (!cache_item || cache_item->cache_key != cache_key || cache_item->is_released()) {
         return Status(ENOENT, "The target not found");
     }
-    if (cache_item->is_released()) {
-        return Status(E_INTERNAL, "the object is released");
-    }
-    Status st =  _read_cache_item(cache_id, cache_item, offset, size, buf);
+    Status st =  _read_cache_item(cache_id, cache_item, offset, size, buf, options);
     STAR_VLOG << "read cache finish, cache_key: " << cache_key << ", offset:" << offset << ", size: " << size
               << ", buf_size: " << buf->size() << ", status: " << st.error_str();
     return st;
 }
 
 Status StarCacheImpl::_read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size,
-                                   IOBuf* buf) {
+                                       IOBuf* buf, ReadOptions* options) {
     buf->clear();
     if (offset + size > cache_item->size) {
         size = offset >= cache_item->size ? 0 : cache_item->size - offset;
@@ -241,7 +259,7 @@ Status StarCacheImpl::_read_cache_item(const CacheId& cache_id, CacheItemPtr cac
         off_t off_in_block = i == start_block_index ? lower - block_lower(i) : 0;
         size_t to_read = i == end_block_index ? upper - (block_lower(i) + off_in_block) + 1
                                               : config::FLAGS_block_size - off_in_block;
-        RETURN_IF_ERROR(_read_block(cache_item, {cache_id, i}, off_in_block, to_read, &block_buf));
+        RETURN_IF_ERROR(_read_block(cache_item, {cache_id, i}, off_in_block, to_read, &block_buf, options));
         aligned_size -= to_read;
         buf->append(block_buf);
     }
@@ -254,7 +272,7 @@ Status StarCacheImpl::_read_cache_item(const CacheId& cache_id, CacheItemPtr cac
 }
 
 Status StarCacheImpl::_read_block(CacheItemPtr cache_item, const BlockKey& block_key, off_t offset, size_t size,
-                              IOBuf* buf) {
+                                  IOBuf* buf, ReadOptions* options) {
     BlockItem& block = cache_item->blocks[block_key.block_index];
     std::vector<BlockSegment> segments;
     std::vector<BlockSegment> disk_segments;
@@ -291,7 +309,7 @@ Status StarCacheImpl::_read_block(CacheItemPtr cache_item, const BlockKey& block
     }
 
     // TODO: The follow procedure can be done asynchronously
-    if (!disk_segments.empty() && _promotion_policy->check_promote(cache_item, block_key)) {
+    if (!disk_segments.empty() && _promotion_policy->check_promote(cache_item, block_key, options)) {
         _promote_block_segments(cache_item, block_key, disk_segments);
     }
     return Status::OK();
@@ -335,11 +353,8 @@ Status StarCacheImpl::pin(const std::string& cache_key) {
     STAR_VLOG << "pin cache, cache_key: " << cache_key;
     auto cache_id = cachekey2id(cache_key);
     auto cache_item = _access_index->find(cache_id);
-    if (!cache_item || cache_item->cache_key != cache_key) {
+    if (!cache_item || cache_item->cache_key != cache_key || cache_item->is_released()) {
         return Status(ENOENT, "The target not found");
-    }
-    if (cache_item->is_released()) {
-        return Status(E_INTERNAL, "the object is released");
     }
     Status st = _pin_cache_item(cache_id, cache_item);
     STAR_VLOG << "pin cache finish, cache_key: " << cache_key << ", status: " << st.error_str();
@@ -368,11 +383,8 @@ Status StarCacheImpl::unpin(const std::string& cache_key) {
     STAR_VLOG << "unpin cache, cache_key: " << cache_key;
     auto cache_id = cachekey2id(cache_key);
     auto cache_item = _access_index->find(cache_id);
-    if (!cache_item || cache_item->cache_key != cache_key) {
+    if (!cache_item || cache_item->cache_key != cache_key || cache_item->is_released()) {
         return Status(ENOENT, "The target not found");
-    }
-    if (cache_item->is_released()) {
-        return Status(E_INTERNAL, "the object is released");
     }
     Status st = _unpin_cache_item(cache_id, cache_item);
     STAR_VLOG << "unpin cache finish, cache_key: " << cache_key << ", status: " << st.error_str();

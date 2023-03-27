@@ -601,6 +601,86 @@ TEST_F(StarCacheTest, pin_unpin_for_hybrid_cache) {
     ASSERT_EQ(st.error_code(), ENOENT) << st.error_str();
 }
 
+TEST_F(StarCacheTest, write_options_with_pinned) {
+    CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    auto cache = create_simple_cache(10 * MB, 10 * MB);
+
+    const size_t obj_size = 4 * MB + 123;
+    const size_t rounds = 10;
+    const std::string cache_key = "test_file";
+    char ch = 'a';
+    IOBuf wbuf = gen_iobuf(obj_size, ch);
+    Status st;
+
+    WriteOptions options;
+    options.pinned = true;
+    const std::string target_to_pin = cache_key + std::to_string(0);
+    st = cache->set(target_to_pin, wbuf, &options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    IOBuf rbuf;
+    for (size_t i = 1; i < rounds; ++i) {
+        const std::string key = cache_key + std::to_string(i);
+        st = cache->set(key, wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+        cache->get(key, &rbuf);
+    }
+
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    // unpin cache
+    st = cache->unpin(target_to_pin);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    for (size_t i = 1; i < rounds; ++i) {
+        const std::string key = cache_key + std::to_string(i);
+        st = cache->set(key, wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+        cache->get(key, &rbuf);
+    }
+
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_EQ(st.error_code(), ENOENT) << st.error_str();
+}
+
+TEST_F(StarCacheTest, write_options_with_overwrite) {
+    CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    auto cache = create_simple_cache(10 * MB, 10 * MB);
+
+    const size_t obj_size = 4 * MB + 123;
+    const std::string cache_key = "test_file0";
+    IOBuf wbuf = gen_iobuf(obj_size, 'a');
+    Status st;
+    IOBuf rbuf;
+
+    st = cache->set(cache_key, wbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    st = cache->get(cache_key, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    IOBuf wbuf2 = gen_iobuf(obj_size, 'b');
+    st = cache->set(cache_key, wbuf2);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    st = cache->get(cache_key, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf2);
+
+    WriteOptions options;
+    options.overwrite = true;
+    st = cache->set(cache_key, wbuf, &options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    st = cache->get(cache_key, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    options.overwrite = false;
+    st = cache->set(cache_key, wbuf2, &options);
+    ASSERT_EQ(st.error_code(), EEXIST) << st.error_str();
+}
+
 } // namespace starrocks::starcache
 
 int main(int argc, char** argv) {

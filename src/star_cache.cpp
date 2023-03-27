@@ -34,16 +34,16 @@ Status StarCache::init(const CacheOptions& options) {
     return _cache_impl->init(options);
 }
 
-Status StarCache::set(const CacheKey& cache_key, const IOBuf& buf, uint64_t ttl_seconds) {
-    return _cache_impl->set(cache_key, buf, ttl_seconds);
+Status StarCache::set(const std::string& cache_key, const IOBuf& buf, WriteOptions* options) {
+    return _cache_impl->set(cache_key, buf, options);
 }
 
-Status StarCache::get(const CacheKey& cache_key, IOBuf* buf) {
-    return _cache_impl->get(cache_key, buf);
+Status StarCache::get(const std::string& cache_key, IOBuf* buf, ReadOptions* options) {
+    return _cache_impl->get(cache_key, buf, options);
 }
 
-Status StarCache::read(const CacheKey& cache_key, off_t offset, size_t size, IOBuf* buf) {
-    return _cache_impl->read(cache_key, offset, size, buf);
+Status StarCache::read(const std::string& cache_key, off_t offset, size_t size, IOBuf* buf, ReadOptions* options) {
+    return _cache_impl->read(cache_key, offset, size, buf, options);
 }
 
 Status StarCache::remove(const CacheKey& cache_key) {

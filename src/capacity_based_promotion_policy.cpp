@@ -25,11 +25,16 @@ namespace starrocks::starcache {
 CapacityBasedPromotionPolicy::CapacityBasedPromotionPolicy(const Config& config)
         : _mem_cap_threshold(config.mem_cap_threshold) {}
 
-BlockLocation CapacityBasedPromotionPolicy::check_write(const CacheItemPtr& cache_item, const BlockKey& block_key) {
+BlockLocation CapacityBasedPromotionPolicy::check_write(const CacheItemPtr& cache_item, const BlockKey& block_key,
+                                                        const WriteOptions* options) {
+    if (options && options->mode == WriteOptions::WriteMode::WRITE_THROUGH) {
+        return BlockLocation::DISK;
+    }
     STATIC_EXCEPT_UT size_t disk_quota = DiskSpaceManager::GetInstance()->quota_bytes();
     if (disk_quota == 0) {
         return BlockLocation::MEM;
     }
+
     auto mem_space_mgr = MemSpaceManager::GetInstance();
     size_t used_rate = mem_space_mgr->used_bytes() * 100 / mem_space_mgr->quota_bytes();
     if (used_rate < _mem_cap_threshold && !_is_mem_overload()) {
@@ -41,7 +46,11 @@ BlockLocation CapacityBasedPromotionPolicy::check_write(const CacheItemPtr& cach
     return BlockLocation::NONE;
 }
 
-bool CapacityBasedPromotionPolicy::check_promote(const CacheItemPtr& cache_item, const BlockKey& block_key) {
+bool CapacityBasedPromotionPolicy::check_promote(const CacheItemPtr& cache_item, const BlockKey& block_key,
+                                                 const ReadOptions* options) {
+    if (options && options->mode == ReadOptions::ReadMode::READ_THROUGH) {
+        return false;
+    }
     if (UNLIKELY(_is_mem_overload())) {
         return false;
     }

@@ -32,18 +32,20 @@ public:
     const CacheOptions* options();
 
     // Set the whole cache object.
-    // If the `cache_key` exists, replace the cache data.
+    // If the `cache_key` exists:
+    // - if overwrite=true, replace the cache data.
+    // - if overwrite=false, return EEXIST.
     // If the `ttl_seconds` is 0 (default), no ttl restriction will be set.
-    Status set(const std::string& cache_key, const IOBuf& buf, uint64_t ttl_seconds = 0);
+    Status set(const std::string& cache_key, const IOBuf& buf, WriteOptions* options = nullptr);
 
     // Get the whole cache object.
     // If no such object, return ENOENT error
-    Status get(const std::string& cache_key, IOBuf* buf);
+    Status get(const std::string& cache_key, IOBuf* buf, ReadOptions* options = nullptr);
 
     // Read the partial cache object with given range.
     // If the range exceeds the object size, only read the range within the object size.
     // Only if all the data in the valid range exists in the cache will it return success, otherwise will return ENOENT.
-    Status read(const std::string& cache_key, off_t offset, size_t size, IOBuf* buf);
+    Status read(const std::string& cache_key, off_t offset, size_t size, IOBuf* buf, ReadOptions* options = nullptr);
 
     // Remove the cache object.
     // If no such object, return ENOENT error
