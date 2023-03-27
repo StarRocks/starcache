@@ -31,7 +31,12 @@ mkdir -p $TP_INSTALL_DIR/include
 mkdir -p $TP_INSTALL_DIR/lib
 
 BUILD_SYSTEM=${BUILD_SYSTEM:-make}
-CMAKE_CMD=cmake
+if [ -z "${STARCACHE_CMAKE_CMD}" ]; then
+    if [ -n "${STARCACHE_CMAKE_HOME}" ] ; then
+        export PATH=${STARCACHE_CMAKE_HOME}/bin:$PATH
+    fi
+    export STARCACHE_CMAKE_CMD=cmake
+fi
 CMAKE_GENERATOR="Unix Makefiles"
 
 export CXXFLAGS="-O3 -fno-omit-frame-pointer -Wno-class-memaccess -fPIC -g -I${TP_INCLUDE_DIR}"
@@ -308,8 +313,8 @@ cmake_build()
         build_dir=tmp-build
     fi
     rm -rf $build_dir/ CMakeCache.txt
-    echo $CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
-    $CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
+    echo $STARCACHE_CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
+    $STARCACHE_CMAKE_CMD $srcdir -B $build_dir -G "${CMAKE_GENERATOR}" $common_opts "$@"
 
     pushd $build_dir &>/dev/null
     ${BUILD_SYSTEM} -j$PARALLEL

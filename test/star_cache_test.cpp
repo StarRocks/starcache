@@ -281,7 +281,6 @@ TEST_F(StarCacheTest, disk_cache_eviction) {
         IOBuf expect_buf = gen_iobuf(obj_size, ch);
         IOBuf buf;
         st = cache->get(cache_key + std::to_string(i), &buf);
-        LOG(INFO) << "[Gavin] get cache key: " << cache_key << i << ", st: " << st.error_str();
         if (exist_index.find(i) != exist_index.end()) {
             ASSERT_TRUE(st.ok()) << st.error_str();
             ASSERT_EQ(buf, expect_buf);
