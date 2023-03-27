@@ -27,9 +27,10 @@ public:
     explicit CapacityBasedPromotionPolicy(const Config& config);
     ~CapacityBasedPromotionPolicy() override = default;
 
-    BlockLocation check_write(const CacheItemPtr& cache_item, const BlockKey& block_key) override;
+    BlockLocation check_write(const CacheItemPtr& cache_item, const BlockKey& block_key,
+                              const WriteOptions* options) override;
 
-    bool check_promote(const CacheItemPtr& cache_item, const BlockKey& block_key) override;
+    bool check_promote(const CacheItemPtr& cache_item, const BlockKey& block_key, const ReadOptions* options) override;
 
 private:
     // TODO: Monitor disk ioutil or io latency to reject some write requets when disks overload.

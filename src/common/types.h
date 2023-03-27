@@ -26,6 +26,10 @@ using IOBuf = butil::IOBuf;
 using CacheId = uint64_t;
 using CacheKey = std::string;
 
+constexpr size_t KB = 1024;
+constexpr size_t MB = KB * 1024;
+constexpr size_t GB = MB * 1024;
+
 struct BlockId {
     uint8_t dir_index;
     uint32_t block_index;
@@ -64,8 +68,73 @@ struct CacheOptions {
     size_t block_size = 0;
 };
 
-constexpr size_t KB = 1024;
-constexpr size_t MB = KB * 1024;
-constexpr size_t GB = MB * 1024;
+struct WriteOptions {
+    enum class WriteMode{
+        // Write according the starcache promotion policy.
+        WRITE_BACK,
+        // Write to disk directly.
+        WRITE_THROUGH
+    };
+    // If ttl_seconds=0 (default), no ttl restriction will be set. If an old one exists, remove it. 
+    uint64_t ttl_seconds=0;
+    // If pinned=true, the starcache guarantees the atomicity of write and pin operations.
+    bool pinned = false;
+    // If overrite=true, the cache value will be replaced if it already exists.
+    bool overrite = true;
+    WriteMode mode = WriteMode::WRITE_BACK;
+
+    // Output, store the statistics information about this write.
+    struct WriteStats {
+    } stats;
+};
+
+struct ReadOptions {
+    enum class ReadMode{
+        // Read according the starcache promotion policy.
+        READ_BACK,
+        // Skip promoting the data read from disk.
+        READ_THROUGH
+    };
+    ReadMode mode = ReadMode::READ_BACK;
+
+    // Output, store the statistics information about this read.
+    struct WriteStats {
+    } stats;
+};
+
+inline std::ostream& operator<<(std::ostream& os, const WriteOptions::WriteMode& mode) {
+    switch (mode) {
+    case WriteOptions::WriteMode::WRITE_BACK:
+       os << "write_back"; 
+       break;
+    case WriteOptions::WriteMode::WRITE_THROUGH:
+       os << "write_through";
+       break;
+    }
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const ReadOptions::ReadMode& mode) {
+    switch (mode) {
+    case ReadOptions::ReadMode::READ_BACK:
+       os << "read_back"; 
+       break;
+    case ReadOptions::ReadMode::READ_THROUGH:
+       os << "read_through";
+       break;
+    }
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const WriteOptions& options) {
+    os << "{ ttl_seconds: " << options.ttl_seconds << ", pinned: " << options.pinned
+       << ", overrite: " << options.overrite << ", mode: " << options.mode << " }";
+    return os;
+}
+
+inline std::ostream& operator<<(std::ostream& os, const ReadOptions& options) {
+    os << "{ mode: " << options.mode << " }";
+    return os;
+}
 
 } // namespace starrocks::starcache

@@ -44,7 +44,7 @@ public:
 
     virtual ~EvictionPolicy() = default;
 
-    // Add the given id to the evict component
+    // Add the given id to the eviction component
     virtual bool add(const T& id, size_t size) = 0;
 
     // Record the hit of the id
@@ -61,10 +61,10 @@ public:
     // Release the item handle returned by touch
     virtual void release(void* hdl) = 0;
 
-    // Remove the given id from the evict component, used for `pin` function.
+    // Remove the given id from the eviction component, used for `pin` function.
     virtual void remove(const T& id) = 0;
 
-    // Clear all items in the evict component
+    // Clear all items in the eviction component
     virtual void clear() = 0;
 };
 

@@ -41,10 +41,12 @@ public:
     virtual ~PromotionPolicy() = default;
 
     // Check the location to write the given block first time
-    virtual BlockLocation check_write(const CacheItemPtr& cache_item, const BlockKey& block_key) = 0;
+    virtual BlockLocation check_write(const CacheItemPtr& cache_item, const BlockKey& block_key,
+                                      const WriteOptions* options) = 0;
 
     // Check whether to promote the given block
-    virtual bool check_promote(const CacheItemPtr& cache_item, const BlockKey& block_key) = 0;
+    virtual bool check_promote(const CacheItemPtr& cache_item, const BlockKey& block_key,
+                               const ReadOptions* options) = 0;
 };
 
 } // namespace starrocks::starcache
