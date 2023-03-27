@@ -56,11 +56,11 @@ public:
     // The object still can be removed in the cases:
     // 1. calling remove api
     // 2. the ttl is timeout
-    Status pin(const std::string& cache_key) { return Status::OK(); }
+    Status pin(const std::string& cache_key);
 
     // UnPin the cache object in cache.
     // If the object is not exist or has been removed, return ENOENT error.
-    Status unpin(const std::string& cache_key) { return Status::OK(); }
+    Status unpin(const std::string& cache_key);
 
 private:
     StarCacheImpl* _cache_impl = nullptr;

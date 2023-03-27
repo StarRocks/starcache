@@ -2,6 +2,7 @@
 code-format/__pycache__/
 third_party/installed/
 third_party/src/
+.ycm_extra_conf.py
 
 # VIM: Swap-files
 [._]*.s[a-w][a-z]

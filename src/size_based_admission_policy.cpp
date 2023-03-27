@@ -25,10 +25,6 @@ SizeBasedAdmissionPolicy::SizeBasedAdmissionPolicy(const Config& config)
           _rand_generator(std::rand()) {}
 
 BlockAdmission SizeBasedAdmissionPolicy::check_admission(const CacheItemPtr& cache_item, const BlockKey& block_key) {
-    STATIC_EXCEPT_UT size_t disk_quota = DiskSpaceManager::GetInstance()->quota_bytes();
-    if (disk_quota == 0) {
-        return BlockAdmission::DELETE;
-    }
     if (cache_item->size >= _max_check_size) {
         return BlockAdmission::FLUSH;
     }

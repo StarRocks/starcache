@@ -50,4 +50,12 @@ Status StarCache::remove(const CacheKey& cache_key) {
     return _cache_impl->remove(cache_key);
 }
 
+Status StarCache::pin(const std::string& cache_key) {
+    return _cache_impl->pin(cache_key);
+}
+
+Status StarCache::unpin(const std::string& cache_key) {
+    return _cache_impl->unpin(cache_key);
+}
+
 } // namespace starrocks::starcache
