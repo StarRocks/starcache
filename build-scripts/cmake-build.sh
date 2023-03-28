@@ -151,9 +151,6 @@ if [ -z "${STARCACHE_INSTALL_DIR}" ] ; then
     STARCACHE_INSTALL_DIR=$INSTALL_DIR_PREFIX/starcache_installed
 fi
 
-mkdir -p ${CMAKE_BUILD_DIR}
-mkdir -p ${STARCACHE_INSTALL_DIR}
-
 if [ ${CLEAN} -eq 1  ]; then
     rm -rf ${CMAKE_BUILD_DIR}
 fi
@@ -162,19 +159,23 @@ mkdir -p ${CMAKE_BUILD_DIR}
 mkdir -p ${STARCACHE_INSTALL_DIR}
 
 $STARCACHE_CMAKE_CMD -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                 \
-	  -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE} 													\
-	  -DWITH_TESTS=${WITH_TESTS} 																\
-	  -DWITH_TOOLS=${WITH_TOOLS} 																\
-	  -DWITH_COVERAGE=OFF																		\
+      -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}                                                    \
+      -DWITH_TESTS=${WITH_TESTS}                                                                \
+      -DWITH_TOOLS=${WITH_TOOLS}                                                                \
+      -DWITH_COVERAGE=OFF                                                                       \
       -DOPENSSL_USE_STATIC_LIBS=TRUE                                                            \
-      -DGTest_DIR=${THIRD_PARTY_INSTALL_PREFIX}/lib/cmake/GTest                                 \
-      -DBOOST_ROOT=${THIRD_PARTY_INSTALL_PREFIX}                                                \
-      -Dthirdparty_DIR=${THIRD_PARTY_INSTALL_PREFIX}/                                           \
+      -DSTARCACHE_THIRDPARTY_DIR=${THIRD_PARTY_INSTALL_PREFIX}/                                 \
+      -DSTARCACHE_INSTALL_DIR=${STARCACHE_INSTALL_DIR}                                          \
+      -DPROTOBUF_ROOT=${WITH_PROTOBUF_ROOT}                                                     \
+      -DGFLAGS_ROOT=${WITH_GFLAGS_ROOT}                                                         \
+      -DGLOG_ROOT=${WITH_GLOG_ROOT}                                                             \
+      -DBRPC_ROOT=${WITH_BRPC_ROOT}                                                             \
+      -DSSL_ROOT=${WITH_SSL_ROOT}                                                               \
+      -DFMT_ROOT=${WITH_FMT_ROOT}                                                               \
+      -DGTEST_ROOT=${WITH_GTEST_ROOT}                                                           \
+      -DBOOST_ROOT=${WITH_BOOST_ROOT}                                                           \
       ${STARCACHE_TEST_COVERAGE:+"-Dstarcache_BUILD_COVERAGE=$STARCACHE_TEST_COVERAGE"}         \
-      -DCMAKE_INSTALL_PREFIX=${STARCACHE_INSTALL_DIR}                                           \
       .
-
-      #-DBoost_LIBRARYDIR=${THIRD_PARTY_INSTALL_PREFIX}/lib                                     \
 
 cd ${CMAKE_BUILD_DIR}
 echo make -j $PARALLEL
