@@ -470,44 +470,32 @@ TEST_F(StarCacheTest, cache_with_multi_disk) {
     }
 }
 
-TEST_F(StarCacheTest, replace_cache_content) {
+TEST_F(StarCacheTest, only_cache_in_disk) {
     CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    // To make sure all flush process will be skipped
+    CONFIG_UPDATE(uint32_t, config::FLAGS_promotion_probalility, 0);
+    CONFIG_UPDATE(uint64_t, config::FLAGS_promotion_mem_threshold, 0);
+    auto cache = create_simple_cache(10 * MB, 25 * MB);
 
-    std::filesystem::create_directories("./ut_dir/star_disk_cache2");
-    std::filesystem::create_directories("./ut_dir/star_disk_cache3");
-
-    std::shared_ptr<StarCache> cache(new StarCache);
-    CacheOptions options;
-    options.mem_quota_bytes = 10 * MB;
-    options.disk_dir_spaces.push_back({.path = "./ut_dir/star_disk_cache", .quota_bytes = 8 * MB});
-    options.disk_dir_spaces.push_back({.path = "./ut_dir/star_disk_cache2", .quota_bytes = 16 * MB});
-    options.disk_dir_spaces.push_back({.path = "./ut_dir/star_disk_cache3", .quota_bytes = 24 * MB});
-    Status status = cache->init(options);
-    ASSERT_TRUE(status.ok());
-
-    const size_t obj_size = 4 * MB;
+    const size_t obj_size = 4 * MB + 123;
     const size_t rounds = 5;
-    const size_t batch_count = 3;
     const std::string cache_key = "test_file";
+    char ch = 'a';
+    IOBuf wbuf = gen_iobuf(obj_size, ch);
     Status st;
 
+    // write cache
     for (size_t i = 0; i < rounds; ++i) {
-        for (size_t j = 0; j < batch_count; ++j) {
-            size_t index = i * batch_count + j;
-            char ch = 'a' + index;
-            IOBuf wbuf = gen_iobuf(obj_size, ch);
-            st = cache->set(cache_key + std::to_string(index), wbuf);
-            ASSERT_TRUE(st.ok()) << st.error_str();
-        }
-        for (size_t j = 0; j < batch_count; ++j) {
-            size_t index = i * batch_count + j;
-            char ch = 'a' + index;
-            IOBuf rbuf;
-            IOBuf expect_buf = gen_iobuf(obj_size, ch);
-            st = cache->get(cache_key + std::to_string(index), &rbuf);
-            ASSERT_TRUE(st.ok()) << st.error_str();
-            ASSERT_EQ(rbuf, expect_buf);
-        }
+        st = cache->set(cache_key + std::to_string(i), wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+    }
+
+    IOBuf rbuf;
+    IOBuf expect_buf = gen_iobuf(obj_size, ch);
+    for (size_t i = 0; i < rounds; ++i) {
+        st = cache->get(cache_key + std::to_string(i), &rbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+        ASSERT_EQ(rbuf, expect_buf);
     }
 }
 
@@ -611,6 +599,86 @@ TEST_F(StarCacheTest, pin_unpin_for_hybrid_cache) {
 
     st = cache->get(target_to_pin, &rbuf);
     ASSERT_EQ(st.error_code(), ENOENT) << st.error_str();
+}
+
+TEST_F(StarCacheTest, write_options_with_pinned) {
+    CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    auto cache = create_simple_cache(10 * MB, 10 * MB);
+
+    const size_t obj_size = 4 * MB + 123;
+    const size_t rounds = 10;
+    const std::string cache_key = "test_file";
+    char ch = 'a';
+    IOBuf wbuf = gen_iobuf(obj_size, ch);
+    Status st;
+
+    WriteOptions options;
+    options.pinned = true;
+    const std::string target_to_pin = cache_key + std::to_string(0);
+    st = cache->set(target_to_pin, wbuf, &options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    IOBuf rbuf;
+    for (size_t i = 1; i < rounds; ++i) {
+        const std::string key = cache_key + std::to_string(i);
+        st = cache->set(key, wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+        cache->get(key, &rbuf);
+    }
+
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    // unpin cache
+    st = cache->unpin(target_to_pin);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    for (size_t i = 1; i < rounds; ++i) {
+        const std::string key = cache_key + std::to_string(i);
+        st = cache->set(key, wbuf);
+        ASSERT_TRUE(st.ok()) << st.error_str();
+        cache->get(key, &rbuf);
+    }
+
+    st = cache->get(target_to_pin, &rbuf);
+    ASSERT_EQ(st.error_code(), ENOENT) << st.error_str();
+}
+
+TEST_F(StarCacheTest, write_options_with_overwrite) {
+    CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    auto cache = create_simple_cache(10 * MB, 10 * MB);
+
+    const size_t obj_size = 4 * MB + 123;
+    const std::string cache_key = "test_file0";
+    IOBuf wbuf = gen_iobuf(obj_size, 'a');
+    Status st;
+    IOBuf rbuf;
+
+    st = cache->set(cache_key, wbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    st = cache->get(cache_key, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    IOBuf wbuf2 = gen_iobuf(obj_size, 'b');
+    st = cache->set(cache_key, wbuf2);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    st = cache->get(cache_key, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf2);
+
+    WriteOptions options;
+    options.overrite = true;
+    st = cache->set(cache_key, wbuf, &options);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    st = cache->get(cache_key, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+    ASSERT_EQ(rbuf, wbuf);
+
+    options.overrite = false;
+    st = cache->set(cache_key, wbuf2, &options);
+    ASSERT_EQ(st.error_code(), EEXIST) << st.error_str();
 }
 
 } // namespace starrocks::starcache

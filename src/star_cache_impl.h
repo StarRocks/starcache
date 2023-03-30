@@ -32,17 +32,17 @@ public:
 
     const CacheOptions* options();
 
-    Status set(const std::string& cache_key, const IOBuf& buf, uint64_t ttl_seconds);
+    Status set(const CacheKey& cache_key, const IOBuf& buf, WriteOptions* options);
 
-    Status get(const std::string& cache_key, IOBuf* buf);
+    Status get(const CacheKey& cache_key, IOBuf* buf, ReadOptions* options);
 
-    Status read(const std::string& cache_key, off_t offset, size_t size, IOBuf* buf);
+    Status read(const CacheKey& cache_key, off_t offset, size_t size, IOBuf* buf, ReadOptions* options);
 
-    Status remove(const std::string& cache_key);
+    Status remove(const CacheKey& cache_key);
 
-    Status pin(const std::string& cache_key);
+    Status pin(const CacheKey& cache_key);
 
-    Status unpin(const std::string& cache_key);
+    Status unpin(const CacheKey& cache_key);
 
     bool has_disk_layer() {
         STATIC_EXCEPT_UT bool has_disk = _options.disk_dir_spaces.size() > 0;
@@ -53,14 +53,16 @@ private:
     static size_t _continuous_segments_size(const std::vector<BlockSegmentPtr>& segments);
 
     Status _write_cache_item(const CacheId& cache_id, const CacheKey& cache_key, const IOBuf& buf,
-                             uint64_t ttl_seconds);
-    Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf);
+                             WriteOptions* options);
+    Status _read_cache_item(const CacheId& cache_id, CacheItemPtr cache_item, off_t offset, size_t size, IOBuf* buf,
+                            ReadOptions* options);
     void _remove_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
     Status _pin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
     Status _unpin_cache_item(const CacheId& cache_id, CacheItemPtr cache_item);
 
-    Status _write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf);
-    Status _read_block(CacheItemPtr cache_item, const BlockKey& block_key, off_t offset, size_t size, IOBuf* buf);
+    Status _write_block(CacheItemPtr cache_item, const BlockKey& block_key, const IOBuf& buf, WriteOptions* options);
+    Status _read_block(CacheItemPtr cache_item, const BlockKey& block_key, off_t offset, size_t size, IOBuf* buf,
+                       ReadOptions* options);
 
     Status _flush_block(CacheItemPtr cache_item, const BlockKey& block_key);
     Status _flush_block_segments(CacheItemPtr cache_item, const BlockKey& block_key,
@@ -74,7 +76,7 @@ private:
     void _process_evicted_mem_blocks(const std::vector<BlockKey>& evicted);
     void _process_evicted_disk_items(const std::vector<CacheId>& evicted);
 
-    CacheItemPtr _alloc_cache_item(const std::string& cache_key, size_t size, uint64_t expire_time);
+    CacheItemPtr _alloc_cache_item(const CacheKey& cache_key, size_t size, uint64_t expire_time);
     BlockSegmentPtr _alloc_block_segment(const BlockKey& block_key, off_t offset, uint32_t size, const IOBuf& buf);
     DiskBlockPtr _alloc_disk_block(const BlockKey& block_key);
 

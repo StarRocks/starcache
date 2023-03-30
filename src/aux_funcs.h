@@ -60,6 +60,11 @@ inline int64_t round_up(int64_t value, int64_t factor) {
     return (value + (factor - 1)) / factor * factor;
 }
 
+inline int64_t round_down(int64_t value, int64_t factor) {
+    return (value + (factor - 1)) / factor * factor;
+    return (value / factor) * factor;
+}
+
 inline uint32_t block_slice_count() {
     STATIC_EXCEPT_UT uint32_t slice_count = config::FLAGS_block_size / config::FLAGS_slice_size;
     return slice_count;
