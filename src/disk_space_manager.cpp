@@ -14,6 +14,8 @@
 
 #include "disk_space_manager.h"
 
+#include <filesystem>
+
 #include <fmt/format.h>
 #include <glog/logging.h>
 
@@ -26,8 +28,8 @@ const std::string CacheDir::BLOCK_FILE_PREFIX = "blockfile";
 const size_t CacheDir::BLOCK_COUNT_IN_SPACE = 1024;
 
 Status CacheDir::init() {
-    RETURN_IF_ERROR(init_free_space_list());
-    RETURN_IF_ERROR(init_block_files());
+    RETURN_IF_ERROR(_init_free_space_list());
+    RETURN_IF_ERROR(_init_block_files());
     return Status::OK();
 }
 
@@ -92,7 +94,7 @@ Status CacheDir::readv_block(uint32_t block_index, off_t offset_in_block, const 
     return file->readv(offset, sizev, bufv);
 }
 
-Status CacheDir::init_free_space_list() {
+Status CacheDir::_init_free_space_list() {
     size_t space_count = _total_block_count / BLOCK_COUNT_IN_SPACE;
     _block_spaces = new BlockSpace[space_count + 1];
 
@@ -117,7 +119,8 @@ Status CacheDir::init_free_space_list() {
     return Status::OK();
 }
 
-Status CacheDir::init_block_files() {
+Status CacheDir::_init_block_files() {
+    RETURN_IF_ERROR(_clean_block_files());
     size_t free_bytes = _quota_bytes;
     size_t file_count = free_bytes / config::FLAGS_block_file_size;
     for (size_t i = 0; i < file_count; ++i) {
@@ -135,6 +138,24 @@ Status CacheDir::init_block_files() {
         BlockFilePtr file(new BlockFile(file_path, free_bytes));
         RETURN_IF_ERROR(file->open(config::FLAGS_pre_allocate_block_file));
         _block_files.push_back(file);
+    }
+    return Status::OK();
+}
+
+Status CacheDir::_clean_block_files() {
+    for (const auto& entry : std::filesystem::directory_iterator(_path)) {
+        if (entry.is_directory()) {
+            continue;
+        }
+        std::string filename = entry.path().filename().string();
+        if (filename.substr(0, BLOCK_FILE_PREFIX.size()) == BLOCK_FILE_PREFIX) {
+            std::error_code ec;
+            std::filesystem::remove(entry.path(), ec);
+            if (ec) {
+                return Status(ec.value(), "clean block file %s failed, reason: %s",
+                              entry.path().filename().c_str(), ec.message().c_str());
+            }
+        }
     }
     return Status::OK();
 }
