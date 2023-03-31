@@ -75,8 +75,9 @@ public:
     std::string path() const { return _path; }
 
 private:
-    Status init_free_space_list();
-    Status init_block_files();
+    Status _init_free_space_list();
+    Status _init_block_files();
+    Status _clean_block_files();
 
     uint8_t _index;
     size_t _quota_bytes;

@@ -81,7 +81,7 @@ const CacheOptions* StarCacheImpl::options() {
 Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, WriteOptions* options) {
     STAR_VLOG << "set cache, cache_key: " << cache_key << ", buf size: " << buf.size();
     if (options) {
-        STAR_VLOG << " options: " << options;
+        STAR_VLOG << " options: " << *options;
     }
     if (buf.empty()) {
         return Status(E_INTERNAL, "cache value should not be empty");
@@ -202,7 +202,7 @@ Status StarCacheImpl::_write_block(CacheItemPtr cache_item, const BlockKey& bloc
 Status StarCacheImpl::get(const CacheKey& cache_key, IOBuf* buf, ReadOptions* options) {
     STAR_VLOG << "get cache, cache_key: " << cache_key;
     if (options) {
-        STAR_VLOG << " options: " << options;
+        STAR_VLOG << " options: " << *options;
     }
     auto cache_id = cachekey2id(cache_key);
     auto cache_item = _access_index->find(cache_id);
@@ -219,7 +219,7 @@ Status StarCacheImpl::read(const CacheKey& cache_key, off_t offset, size_t size,
                            ReadOptions* options) {
     STAR_VLOG << "read cache, cache_key: " << cache_key << ", offset: " << offset << ", size: " << size;
     if (options) {
-        STAR_VLOG << " options: " << options;
+        STAR_VLOG << " options: " << *options;
     }
     auto cache_id = cachekey2id(cache_key);
     auto cache_item = _access_index->find(cache_id);
