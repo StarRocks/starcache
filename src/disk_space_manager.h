@@ -19,6 +19,7 @@
 
 #include <atomic>
 #include <boost/dynamic_bitset.hpp>
+#include <mutex>
 #include <shared_mutex>
 
 #include "aux_funcs.h"

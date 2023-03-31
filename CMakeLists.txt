@@ -22,8 +22,8 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif()
 endif()
 
-option(WITH_TESTS "Build the starcache test" ON)
-option(WITH_TOOLS "Build the starcache tools" ON)
+option(WITH_TESTS "Build the starcache test" OFF)
+option(WITH_TOOLS "Build the starcache tools" OFF)
 option(WITH_COVERAGE "Enable code coverage build" OFF)
 
 # set CMAKE_BUILD_TYPE
@@ -69,35 +69,58 @@ SET(CMAKE_CXX_FLAGS "${CXX_COMMON_FLAGS} ${CMAKE_CXX_FLAGS}")
 
 message(STATUS "Compiler Flags: ${CMAKE_CXX_FLAGS}")
 
+if ("${STARCACHE_INSTALL_DIR}" STREQUAL "")
+    set(STARCACHE_INSTALL_DIR ${CMAKE_CURRENT_LIST_DIR}/installed)
+endif()
+set(CMAKE_INSTALL_PREFIX ${STARCACHE_INSTALL_DIR})
+set(CMAKE_INSTALL_LIBDIR ${CMAKE_INSTALL_PREFIX}/lib)
+set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/include)
+
 #### External Dependencies ####
 
-FUNCTION(SEARCH_LIBRARY RESULT LIB_NAME)
-    find_library(${RESULT} ${LIB_NAME} ${thirdparty_DIR}/lib)
-    if(NOT ${RESULT})
-        find_library(${RESULT} ${LIB_NAME} ${thirdparty_DIR}/lib64)
+FUNCTION(SEARCH_LIBRARY RESULT LIB_NAME LIB_ROOT)
+    if ("${LIB_ROOT}" STREQUAL "")
+        set(SEARCH_PATH ${STARCACHE_THIRDPARTY_DIR})
+    else()
+        set(SEARCH_PATH ${LIB_ROOT})
+    endif()
+
+    find_library(${RESULT} ${LIB_NAME} ${SEARCH_PATH}/lib)
+    if (NOT ${RESULT})
+        find_library(${RESULT} ${LIB_NAME} ${SEARCH_PATH}/lib64)
+    endif()
+
+    if (${RESULT})
+        if ((NOT "${LIB_ROOT}" STREQUAL "") AND (EXISTS "${LIB_ROOT}/include"))
+            include_directories(${LIB_ROOT}/include)
+        endif()
     endif()
 ENDFUNCTION()
 
 ## PROTOBUF
-SEARCH_LIBRARY(PROTOBUF_LIBPROTOBUF protobuf)
+SEARCH_LIBRARY(PROTOBUF_LIBPROTOBUF protobuf "${PROTOBUF_ROOT}")
 
 ## GFLAGS
-SEARCH_LIBRARY(GFLAGS_LIB gflags)
+SEARCH_LIBRARY(GFLAGS_LIB gflags "${GFLAGS_ROOT}")
 
 ## GLOG
-SEARCH_LIBRARY(GLOG_LIB glog)
+SEARCH_LIBRARY(GLOG_LIB glog "${GLOG_ROOT}")
 
 ## BRPC
-SEARCH_LIBRARY(BRPC_LIB brpc)
+SEARCH_LIBRARY(BRPC_LIB brpc "${BRPC_ROOT}")
 
 ## SSL
-SEARCH_LIBRARY(SSL_LIB ssl)
-SEARCH_LIBRARY(CRYPTO_LIB crypto)
+SEARCH_LIBRARY(SSL_LIB ssl "${SSL_ROOT}")
+SEARCH_LIBRARY(CRYPTO_LIB crypto "${SSL_ROOT}")
 
 ## FMT
-SEARCH_LIBRARY(FMT_LIB fmt)
+SEARCH_LIBRARY(FMT_LIB fmt "${FMT_ROOT}")
 
 ## BOOST
+if ("${BOOST_ROOT}" STREQUAL "")
+    set(BOOST_ROOT ${STARCACHE_THIRDPARTY_DIR})
+endif()
+
 set(Boost_USE_STATIC_LIBS ON)
 set(Boost_USE_STATIC_RUNTIME ON)
 set(Boost_DEBUG FALSE)
@@ -113,14 +136,15 @@ include_directories(${Boost_INCLUDE_DIRS})
 set(BOOST_LIB ${Boost_LIBRARIES})
 
 ## include third_party/include
-include_directories(${thirdparty_DIR/include})
+message(STATUS "STARCACHE_THIRDPARTY_DIR: ${STARCACHE_THIRDPARTY_DIR}")
+include_directories(${STARCACHE_THIRDPARTY_DIR}/include)
 
 #### STARCACHE PROJECT ####
 ## GLOBAL VARAIBLES
 set(STARCACHE_SRC_DIR ${CMAKE_CURRENT_LIST_DIR}/src)
 set(STARCACHE_TEST_DIR ${CMAKE_CURRENT_LIST_DIR}/test)
 
-include_directories(${STARCACHE_SRC_DIR})
+include_directories(BEFORE ${STARCACHE_SRC_DIR})
 
 ## Common
 set(STARCACHE_COMMON_SRCS
@@ -168,7 +192,6 @@ if ("${CMAKE_BUILD_TYPE}" STREQUAL "ASAN")
     set(STARCACHE_BASIC_LIBS "${STARCACHE_BASIC_LIBS} -static-libasan")
 endif()
 
-
 target_link_libraries(starcache
     -Wl,--start-group
     ${STARCACHE_BASIC_LIBS}
@@ -206,11 +229,8 @@ if(WITH_TESTS)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fprofile-arcs -ftest-coverage")
     endif()
     unset(CXX_INCLUDES)
-    find_package(GTest CONFIG REQUIRED)
-    get_target_property(GTest_INCLUDE_DIR GTest::gtest_main INTERFACE_INCLUDE_DIRECTORIES)
-    message(STATUS "Using GTest version: ${GTest_VERSION}")
-    message(STATUS "  include: ${GTest_INCLUDE_DIR}")
-    include_directories(${GTest_INCLUDE_DIR})
+
+    SEARCH_LIBRARY(GTEST_LIB gtest "${GTEST_ROOT}")
 
     # TEST LIBRARY
     set(STARCACHE_TEST_SRCS
@@ -224,7 +244,7 @@ if(WITH_TESTS)
 
     target_link_libraries(starcache_test
         starcache
-        GTest::gtest_main
+        ${GTEST_LIB}
     )
 endif()
 
