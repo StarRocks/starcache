@@ -41,13 +41,6 @@ StarCacheImpl::~StarCacheImpl() {
 
 Status StarCacheImpl::init(const CacheOptions& options) {
     _options = options;
-    if (options.block_size > 0) {
-        config::FLAGS_block_size = options.block_size;
-    } else {
-        _options.block_size = config::FLAGS_block_size;
-    }
-    config::FLAGS_enable_disk_checksum = options.checksum;
-
     MemCacheOptions mc_options;
     mc_options.mem_quota_bytes = options.mem_quota_bytes;
     RETURN_IF_ERROR(_mem_cache->init(mc_options));

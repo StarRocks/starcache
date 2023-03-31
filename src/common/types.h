@@ -62,10 +62,6 @@ struct CacheOptions {
     AdmissionCtrlPolicy admission_ctrl_policy;
     PromotionPolicy promotion_policy;
     */
-
-    // Other (Optional)
-    bool checksum = false;
-    size_t block_size = 0;
 };
 
 struct WriteOptions {
