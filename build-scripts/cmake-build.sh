@@ -25,7 +25,7 @@ Usage: $0 <options>
     $0 --clean                                   clean and build starcache library
     $0 --with-tests                              build starcache library and tests
     $0 --with-tests --with-tools                 build starcache library, tests and tools
-    BUILD_TYPE=build_type ./build.sh             build_type could be Release, Debug, or Asan. Default value is Release. To build starcache in Debug mode, you can execute: BUILD_TYPE=Debug ./build.sh)
+    BUILD_TYPE=build_type ./build.sh             build_type could be Release, Debug, RelWithDebInfo or Asan. Default value is Release. To build starcache in Debug mode, you can execute: BUILD_TYPE=Debug ./build.sh)
   "
   exit 1
 }
