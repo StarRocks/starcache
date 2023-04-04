@@ -50,6 +50,9 @@ set(CXX_FLAGS_DEBUG "-ggdb -O0 -gdwarf-4 -DDEBUG")
 #   -gdwarf-4: Debug information is stored as dwarf2 to be as compatible as possible
 set(CXX_FLAGS_RELEASE "-O3 -gdwarf-4 -DNDEBUG")
 
+# For CMAKE_BUILD_TYPE=RelWithDebInfo
+set(CXX_FLAGS_RELWITHDEBINFO "-O2 -ggdb -gdwarf-4 -DNDEBUG")
+
 # For CMAKE_BUILD_TYPE=Asan
 SET(CXX_FLAGS_ASAN "-ggdb3 -O0 -gdwarf-4 -fsanitize=address -DADDRESS_SANITIZER")
 
@@ -60,6 +63,8 @@ elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RELEASE")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_RELEASE}")
 elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "ASAN")
     SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_ASAN}")
+elseif ("${CMAKE_BUILD_TYPE}" STREQUAL "RELWITHDEBINFO")
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CXX_FLAGS_RELWITHDEBINFO}")
 else()
     message(FATAL_ERROR "Unknown build type: ${CMAKE_BUILD_TYPE}")
 endif()
@@ -207,9 +212,6 @@ target_link_libraries(starcache
 )
 
 ### BINARY EXECUTABLE
-# starcache_bench
-#add_executable(cache_bench ${STARCACHE_SRC_DIR}/starcache_bench.cc)
-#target_link_libraries(cache_bench starcache)
 
 # tools
 if(WITH_TOOLS)
@@ -218,8 +220,6 @@ if(WITH_TOOLS)
     )
     add_executable(starcache_tester ${STARCACHE_TOOLS_SRCS})
     target_link_libraries(starcache_tester starcache)
-
-    #add_executable(cache_bench ${STARCACHE_SRC_DIR}/starcache_bench.cc)
 endif()
 
 ### TEST SECTION
