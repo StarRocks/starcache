@@ -174,6 +174,7 @@ $STARCACHE_CMAKE_CMD -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache 
       -DFMT_ROOT=${WITH_FMT_ROOT}                                                               \
       -DGTEST_ROOT=${WITH_GTEST_ROOT}                                                           \
       -DBOOST_ROOT=${WITH_BOOST_ROOT}                                                           \
+      -DFIND_DEFAULT_PATH=${FIND_DEFAULT_PATH}                                                  \
       ${STARCACHE_TEST_COVERAGE:+"-Dstarcache_BUILD_COVERAGE=$STARCACHE_TEST_COVERAGE"}         \
       .
 

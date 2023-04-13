@@ -25,6 +25,7 @@ endif()
 option(WITH_TESTS "Build the starcache test" OFF)
 option(WITH_TOOLS "Build the starcache tools" OFF)
 option(WITH_COVERAGE "Enable code coverage build" OFF)
+option(FIND_DEFAULT_PATH "Whether to find the library in default system library path" OFF)
 
 # set CMAKE_BUILD_TYPE
 if (NOT CMAKE_BUILD_TYPE)
@@ -83,43 +84,57 @@ set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/include)
 
 #### External Dependencies ####
 
-FUNCTION(SEARCH_LIBRARY RESULT LIB_NAME LIB_ROOT)
+FUNCTION(FIND_LIBRARY_IN_PATH RESULT LIB_FILE LIB_NAME LIB_PATH)
+    if(FIND_DEFAULT_PATH)
+        find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib)
+    else()
+        find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib NO_DEFAULT_PATH)
+    endif()
+    if (NOT ${RESULT})
+        if(FIND_DEFAULT_PATH)
+            find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib64)
+        else()
+            find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib64 NO_DEFAULT_PATH)
+        endif()
+    endif()
+ENDFUNCTION()
+
+FUNCTION(SEARCH_LIBRARY RESULT LIB_FILE LIB_NAME LIB_ROOT)
     if ("${LIB_ROOT}" STREQUAL "")
         set(SEARCH_PATH ${STARCACHE_THIRDPARTY_DIR})
     else()
         set(SEARCH_PATH ${LIB_ROOT})
     endif()
 
-    find_library(${RESULT} ${LIB_NAME} ${SEARCH_PATH}/lib)
-    if (NOT ${RESULT})
-        find_library(${RESULT} ${LIB_NAME} ${SEARCH_PATH}/lib64)
-    endif()
-
+    FIND_LIBRARY_IN_PATH(${RESULT} ${LIB_FILE} ${LIB_NAME} ${SEARCH_PATH})
     if (${RESULT})
+        message(STATUS "find library ${LIB_NAME}")
         if ((NOT "${LIB_ROOT}" STREQUAL "") AND (EXISTS "${LIB_ROOT}/include"))
             include_directories(${LIB_ROOT}/include)
         endif()
+    else()
+        message(ERROR "cannot find library ${LIB_NAME}")
     endif()
 ENDFUNCTION()
 
 ## PROTOBUF
-SEARCH_LIBRARY(PROTOBUF_LIBPROTOBUF protobuf "${PROTOBUF_ROOT}")
+SEARCH_LIBRARY(PROTOBUF_LIBPROTOBUF libprotobuf.a protobuf "${PROTOBUF_ROOT}")
 
 ## GFLAGS
-SEARCH_LIBRARY(GFLAGS_LIB gflags "${GFLAGS_ROOT}")
+SEARCH_LIBRARY(GFLAGS_LIB libgflags.a gflags "${GFLAGS_ROOT}")
 
 ## GLOG
-SEARCH_LIBRARY(GLOG_LIB glog "${GLOG_ROOT}")
+SEARCH_LIBRARY(GLOG_LIB libglog.a glog "${GLOG_ROOT}")
 
 ## BRPC
-SEARCH_LIBRARY(BRPC_LIB brpc "${BRPC_ROOT}")
+SEARCH_LIBRARY(BRPC_LIB libbrpc.a brpc "${BRPC_ROOT}")
 
 ## SSL
-SEARCH_LIBRARY(SSL_LIB ssl "${SSL_ROOT}")
-SEARCH_LIBRARY(CRYPTO_LIB crypto "${SSL_ROOT}")
+SEARCH_LIBRARY(SSL_LIB libssl.a ssl "${SSL_ROOT}")
+SEARCH_LIBRARY(CRYPTO_LIB libcrypto.a crypto "${SSL_ROOT}")
 
 ## FMT
-SEARCH_LIBRARY(FMT_LIB fmt "${FMT_ROOT}")
+SEARCH_LIBRARY(FMT_LIB libfmt.a fmt "${FMT_ROOT}")
 
 ## BOOST
 if ("${BOOST_ROOT}" STREQUAL "")
@@ -203,11 +218,11 @@ target_link_libraries(starcache
     ${PROTOBUF_LIBPROTOBUF}
     ${SSL_LIB}
     ${CRYPTO_LIB}
-	${BOOST_LIB}
+    ${BOOST_LIB}
     ${GLOG_LIB}
     ${GFLAGS_LIB}
     ${BRPC_LIB}
-	${FMT_LIB}
+    ${FMT_LIB}
     -Wl,--end-group
 )
 
@@ -230,7 +245,7 @@ if(WITH_TESTS)
     endif()
     unset(CXX_INCLUDES)
 
-    SEARCH_LIBRARY(GTEST_LIB gtest "${GTEST_ROOT}")
+    SEARCH_LIBRARY(GTEST_LIB libgtest.a gtest "${GTEST_ROOT}")
 
     # TEST LIBRARY
     set(STARCACHE_TEST_SRCS
