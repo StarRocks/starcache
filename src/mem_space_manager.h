@@ -18,6 +18,7 @@
 #include <butil/memory/singleton.h>
 
 #include <atomic>
+#include <mutex>
 #include <shared_mutex>
 
 namespace starrocks::starcache {

@@ -25,7 +25,9 @@ uint64_t cachekey2id(const std::string& key) {
 size_t align_iobuf(const butil::IOBuf& buf, void** aligned_data) {
     size_t aligned_unit = config::FLAGS_io_align_unit_size;
     size_t aligned_size = round_up(buf.size(), aligned_unit);
-    posix_memalign(aligned_data, aligned_unit, aligned_size);
+    if (posix_memalign(aligned_data, aligned_unit, aligned_size) != 0) {
+        return 0;
+    }
 
     butil::IOBuf tmp_buf(buf);
     // IOBufCutter is a specialized utility to cut from IOBuf faster than using corresponding

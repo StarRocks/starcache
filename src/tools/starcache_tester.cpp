@@ -26,6 +26,7 @@
 #include <memory>
 #include <numeric>
 #include <thread>
+#include <mutex>
 #include <shared_mutex>
 
 #include "star_cache.h"
