@@ -151,6 +151,10 @@ Status StarCacheImpl::_write_block(CacheItemPtr cache_item, const BlockKey& bloc
             // We allocate an aligned buffer here to avoid repeatedlly copying data to a new aligned buffer
             // when flush to disk file in `O_DIRECT` mode.
             size = align_iobuf(buf, &data);
+            if (size == 0) {
+                LOG(ERROR) << "align io buffer failed when write block";
+                return Status(ENOMEM, "align io buffer failed");
+            }
         } else {
             data = malloc(buf.size());
             buf.copy_to(data);

@@ -15,6 +15,7 @@
 #pragma once
 
 #include <atomic>
+#include <mutex>
 #include <shared_mutex>
 
 #include "block_item.h"

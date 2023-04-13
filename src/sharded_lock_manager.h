@@ -16,6 +16,7 @@
 
 #include <butil/memory/singleton.h>
 
+#include <mutex>
 #include <shared_mutex>
 
 #include "aux_funcs.h"
