@@ -48,7 +48,7 @@ Status BlockFile::close() {
 }
 
 Status BlockFile::write(off_t offset, const IOBuf& buf) {
-    ssize_t ret = 0;
+    ssize_t ret = -1;
     void* aligned_data = nullptr;
     size_t aligned_size = buf.size();
 
@@ -57,15 +57,19 @@ Status BlockFile::write(off_t offset, const IOBuf& buf) {
         auto data = buf.backing_block(0).data();
         if (mem_need_align(data, buf.size())) {
             aligned_size = align_iobuf(buf, &aligned_data);
-            ret = ::pwrite(_fd, aligned_data, aligned_size, offset);
-            free(aligned_data);
+            if (aligned_size > 0) {
+                ret = ::pwrite(_fd, aligned_data, aligned_size, offset);
+                free(aligned_data);
+            }
         } else {
             ret = ::pwrite(_fd, data, aligned_size, offset);
         }
     } else if (!config::FLAGS_enable_os_page_cache) {
         aligned_size = align_iobuf(buf, &aligned_data);
-        ret = ::pwrite(_fd, aligned_data, aligned_size, offset);
-        free(aligned_data);
+        if (aligned_size > 0) {
+            ret = ::pwrite(_fd, aligned_data, aligned_size, offset);
+            free(aligned_data);
+        }
     } else {
         struct iovec iov[block_num];
         for (size_t i = 0; i < block_num; ++i) {
@@ -73,10 +77,13 @@ Status BlockFile::write(off_t offset, const IOBuf& buf) {
         }
         ret = ::pwritev(_fd, iov, block_num, offset);
     }
+
     if (ret < 0) {
+        if (aligned_size == 0) {
+            errno = ENOMEM;
+        }
         return _report_io_error("fail to write block file");
     }
-
     STAR_VLOG << "write block file success, fd: " << _fd << ", path: " << _file_path << ", offset: " << offset
               << ", buf size: " << buf.size() << ", aligned_size: " << aligned_size << ", buf block num: " << block_num;
     return Status::OK();
