@@ -280,8 +280,13 @@ Status StarCacheImpl::_read_block(CacheItemPtr cache_item, const BlockKey& block
     _mem_cache->read_block(block_key, mem_block, offset, size, &segments);
     off_t cursor = offset;
 
+    bool hole_exist = false;
     for (auto& seg : segments) {
         if (seg.offset > cursor) {
+            if (!disk_block) {
+                hole_exist = true;
+                break;
+            }
             BlockSegment bs(cursor, seg.offset - cursor);
             RETURN_IF_ERROR(_disk_cache->read_block(block_key.cache_id, disk_block, &bs));
             bs.buf.append_to(buf, bs.size, 0);
@@ -299,7 +304,7 @@ Status StarCacheImpl::_read_block(CacheItemPtr cache_item, const BlockKey& block
     }
     rlck.unlock();
 
-    if (buf->size() < size) {
+    if (buf->size() < size || hole_exist) {
         STAR_VLOG << "can not read full block from cache, cache_key: " << cache_item->cache_key
                   << ", expect size: " << size << ", real size: " << buf->size();
         return Status(ENOENT, "can not read full block from cache");
