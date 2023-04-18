@@ -22,10 +22,11 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     endif()
 endif()
 
-option(WITH_TESTS "Build the starcache test" OFF)
-option(WITH_TOOLS "Build the starcache tools" OFF)
+option(STARCACHE_WITH_TESTS "Build the starcache tests" OFF)
+option(STARCACHE_WITH_TOOLS "Build the starcache tools" OFF)
 option(WITH_COVERAGE "Enable code coverage build" OFF)
-option(FIND_DEFAULT_PATH "Whether to find the library in default system library path" OFF)
+option(STARCACHE_FIND_DEFAULT_PATH "Whether to find the library in default system library path" OFF)
+option(STARCACHE_SKIP_INSTALL "Skip installing the output files after building the starcache" OFF)
 
 # set CMAKE_BUILD_TYPE
 if (NOT CMAKE_BUILD_TYPE)
@@ -85,13 +86,13 @@ set(CMAKE_INSTALL_INCLUDEDIR ${CMAKE_INSTALL_PREFIX}/include)
 #### External Dependencies ####
 
 FUNCTION(FIND_LIBRARY_IN_PATH RESULT LIB_FILE LIB_NAME LIB_PATH)
-    if(FIND_DEFAULT_PATH)
+    if(STARCACHE_FIND_DEFAULT_PATH)
         find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib)
     else()
         find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib NO_DEFAULT_PATH)
     endif()
     if (NOT ${RESULT})
-        if(FIND_DEFAULT_PATH)
+        if(STARCACHE_FIND_DEFAULT_PATH)
             find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib64)
         else()
             find_library(${RESULT} NAMES ${LIB_FILE} ${LIB_NAME} PATHS ${LIB_PATH}/lib64 NO_DEFAULT_PATH)
@@ -106,7 +107,11 @@ FUNCTION(SEARCH_LIBRARY RESULT LIB_FILE LIB_NAME LIB_ROOT)
         set(SEARCH_PATH ${LIB_ROOT})
     endif()
 
-    FIND_LIBRARY_IN_PATH(${RESULT} ${LIB_FILE} ${LIB_NAME} ${SEARCH_PATH})
+    if ("${SEARCH_PATH}" STREQUAL "")
+        message(ERROR " The 'STARCACHE_THIRDPARTY_DIR' or the ${LIB_NAME} root path need to be set to find the library!")
+    endif()
+
+    FIND_LIBRARY_IN_PATH(${RESULT} ${LIB_FILE} ${LIB_NAME} "${SEARCH_PATH}")
     if (${RESULT})
         message(STATUS "find library ${LIB_NAME}")
         if ((NOT "${LIB_ROOT}" STREQUAL "") AND (EXISTS "${LIB_ROOT}/include"))
@@ -229,7 +234,7 @@ target_link_libraries(starcache
 ### BINARY EXECUTABLE
 
 # tools
-if(WITH_TOOLS)
+if(STARCACHE_WITH_TOOLS)
     set(STARCACHE_TOOLS_SRCS
         ${STARCACHE_SRC_DIR}/tools/starcache_tester.cpp
     )
@@ -239,7 +244,7 @@ endif()
 
 ### TEST SECTION
 
-if(WITH_TESTS)
+if(STARCACHE_WITH_TESTS)
     if(WITH_COVERAGE)
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -fprofile-arcs -ftest-coverage")
     endif()
@@ -265,41 +270,9 @@ endif()
 
 ### INSTALLATION SECTION
 
-# include CMAKE_INSTALL_INCLUDEDIR definitions
-include(GNUInstallDirs)
+if(STARCACHE_SKIP_INSTALL)
+    message(STATUS "Skip installing starcache build output.")
+else()
+    include(cmake/install.cmake)
+endif()
 
-## install include files
-install(
-    DIRECTORY ${STARCACHE_SRC_DIR}/
-    DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/starcache
-    FILES_MATCHING PATTERN "*.h*"
-)
-
-# install libraries
-install(
-    TARGETS ${PROJECT_NAME}
-        starcache
-    DESTINATION ${CMAKE_INSTALL_LIBDIR}
-    EXPORT ${PROJECT_NAME}
-)
-
-include(CMakePackageConfigHelpers)
-write_basic_package_version_file(
-    ${CMAKE_CURRENT_BINARY_DIR}/starcacheConfigVersion.cmake
-    VERSION 0.0.1
-    COMPATIBILITY SameMajorVersion
-)
-
-set(STARCACHE_CMAKE_DIR ${CMAKE_INSTALL_LIBDIR}/cmake/starcache)
-
-configure_package_config_file(
-    ${PROJECT_SOURCE_DIR}/cmake/starcacheConfig.cmake.in
-    ${CMAKE_CURRENT_BINARY_DIR}/starcacheConfig.cmake
-    INSTALL_DESTINATION ${STARCACHE_CMAKE_DIR}
-    PATH_VARS CMAKE_INSTALL_INCLUDEDIR CMAKE_INSTALL_LIBDIR
-)
-
-install(FILES ${CMAKE_CURRENT_BINARY_DIR}/starcacheConfig.cmake
-              ${CMAKE_CURRENT_BINARY_DIR}/starcacheConfigVersion.cmake
-              DESTINATION ${STARCACHE_CMAKE_DIR}
-)

@@ -609,7 +609,7 @@ void StarCacheImpl::_process_evicted_mem_blocks(const std::vector<BlockKey>& evi
         // the following `find`?
         auto cache_item = _access_index->find(key.cache_id);
         if (!cache_item) {
-            LOG(WARNING) << "block does not exist when evict " << key;
+            LOG(INFO) << "block does not exist when evict " << key;
             continue;
         }
         STAR_VLOG << "evict mem block, cache_key: " << cache_item->cache_key << ", block_key: " << key;

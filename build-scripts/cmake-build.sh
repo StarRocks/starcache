@@ -147,8 +147,16 @@ popd
 
 CMAKE_BUILD_DIR=build/build_${CMAKE_BUILD_TYPE}
 
-if [ -z "${STARCACHE_INSTALL_DIR}" ] ; then
+if [ -z "${STARCACHE_INSTALL_DIR}" ]; then
     STARCACHE_INSTALL_DIR=$INSTALL_DIR_PREFIX/starcache_installed
+fi
+
+if [ -z "${FIND_DEFAULT_PATH}" ]; then
+    FIND_DEFAULT_PATH=OFF
+fi
+
+if [ -z "${SKIP_INSTALL}" ]; then
+    SKIP_INSTALL=OFF
 fi
 
 if [ ${CLEAN} -eq 1  ]; then
@@ -160,12 +168,14 @@ mkdir -p ${STARCACHE_INSTALL_DIR}
 
 $STARCACHE_CMAKE_CMD -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache                 \
       -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}                                                    \
-      -DWITH_TESTS=${WITH_TESTS}                                                                \
-      -DWITH_TOOLS=${WITH_TOOLS}                                                                \
-      -DWITH_COVERAGE=OFF                                                                       \
-      -DOPENSSL_USE_STATIC_LIBS=TRUE                                                            \
+      -DSTARCACHE_WITH_TESTS=${WITH_TESTS}                                                      \
+      -DSTARCACHE_WITH_TOOLS=${WITH_TOOLS}                                                      \
+      -DSTARCACHE_WITH_COVERAGE=OFF                                                             \
+      -DSTARCACHE_FIND_DEFAULT_PATH=${FIND_DEFAULT_PATH}                                        \
+      -DSTARCACHE_SKIP_INSTALL=${SKIP_INSTALL}                                                  \
       -DSTARCACHE_THIRDPARTY_DIR=${THIRD_PARTY_INSTALL_PREFIX}/                                 \
       -DSTARCACHE_INSTALL_DIR=${STARCACHE_INSTALL_DIR}                                          \
+      -DOPENSSL_USE_STATIC_LIBS=TRUE                                                            \
       -DPROTOBUF_ROOT=${WITH_PROTOBUF_ROOT}                                                     \
       -DGFLAGS_ROOT=${WITH_GFLAGS_ROOT}                                                         \
       -DGLOG_ROOT=${WITH_GLOG_ROOT}                                                             \
@@ -174,11 +184,13 @@ $STARCACHE_CMAKE_CMD -B ${CMAKE_BUILD_DIR} -DCMAKE_CXX_COMPILER_LAUNCHER=ccache 
       -DFMT_ROOT=${WITH_FMT_ROOT}                                                               \
       -DGTEST_ROOT=${WITH_GTEST_ROOT}                                                           \
       -DBOOST_ROOT=${WITH_BOOST_ROOT}                                                           \
-      -DFIND_DEFAULT_PATH=${FIND_DEFAULT_PATH}                                                  \
       ${STARCACHE_TEST_COVERAGE:+"-Dstarcache_BUILD_COVERAGE=$STARCACHE_TEST_COVERAGE"}         \
       .
 
 cd ${CMAKE_BUILD_DIR}
 echo make -j $PARALLEL
 make -j $PARALLEL
-make install -j $PARALLEL
+
+if [ "${SKIP_INSTALL}" == "OFF" ]; then
+    make install -j $PARALLEL
+fi
