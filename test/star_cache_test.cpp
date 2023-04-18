@@ -681,6 +681,42 @@ TEST_F(StarCacheTest, write_options_with_overwrite) {
     ASSERT_EQ(st.error_code(), EEXIST) << st.error_str();
 }
 
+TEST_F(StarCacheTest, read_segments_with_hole) {
+    CONFIG_UPDATE(uint32_t, config::FLAGS_lru_container_shard_bits, 0);
+    auto cache = create_simple_cache(5 * MB, 10 * MB);
+
+    const size_t obj_size = 10 * MB;
+    const std::string cache_key1 = "test_file1";
+    const std::string cache_key2 = "test_file2";
+    IOBuf wbuf = gen_iobuf(obj_size, 'a');
+    Status st;
+    IOBuf rbuf;
+
+    st = cache->set(cache_key1, wbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    // Promote the 1st and 3rd slice to memory with a hole (the 2nd slice is still in disk)
+    off_t base_offset = 6 * MB;
+    size_t size = config::FLAGS_slice_size;
+    off_t offset = base_offset;
+    st = cache->read(cache_key1, offset, size, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    offset = base_offset+ 2 * size;
+    st = cache->read(cache_key1, offset, size, &rbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    // Evict the first cache object from disk 
+    st = cache->set(cache_key2, wbuf);
+    ASSERT_TRUE(st.ok()) << st.error_str();
+
+    // Read the [1, 3] slices that overlap the previous hole (the 2nd slice)
+    offset = base_offset;
+    size = config::FLAGS_slice_size * 3;
+    st = cache->read(cache_key1, offset, size, &rbuf);
+    ASSERT_EQ(st.error_code(), ENOENT) << st.error_str();
+}
+
 } // namespace starrocks::starcache
 
 int main(int argc, char** argv) {
