@@ -75,8 +75,8 @@ struct WriteOptions {
     uint64_t ttl_seconds=0;
     // If pinned=true, the starcache guarantees the atomicity of write and pin operations.
     bool pinned = false;
-    // If overrite=true, the cache value will be replaced if it already exists.
-    bool overrite = true;
+    // If overwrite=true, the cache value will be replaced if it already exists.
+    bool overwrite = true;
     WriteMode mode = WriteMode::WRITE_BACK;
 
     // Output, store the statistics information about this write.
@@ -124,7 +124,7 @@ inline std::ostream& operator<<(std::ostream& os, const ReadOptions::ReadMode& m
 
 inline std::ostream& operator<<(std::ostream& os, const WriteOptions& options) {
     os << "{ ttl_seconds: " << options.ttl_seconds << ", pinned: " << options.pinned
-       << ", overrite: " << options.overrite << ", mode: " << options.mode << " }";
+       << ", overwrite: " << options.overwrite << ", mode: " << options.mode << " }";
     return os;
 }
 

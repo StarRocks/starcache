@@ -90,7 +90,7 @@ Status StarCacheImpl::set(const CacheKey& cache_key, const IOBuf& buf, WriteOpti
     CacheItemPtr cache_item = _access_index->find(cache_id);
     Status st;
     if (cache_item) {
-        if (!options || options->overrite) {
+        if (!options || options->overwrite) {
             // TODO: Replace the target data directly.
             STAR_VLOG << "remove old cache for update, cache_key: " << cache_key;
             _remove_cache_item(cache_id, cache_item);

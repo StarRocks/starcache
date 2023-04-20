@@ -669,14 +669,14 @@ TEST_F(StarCacheTest, write_options_with_overwrite) {
     ASSERT_EQ(rbuf, wbuf2);
 
     WriteOptions options;
-    options.overrite = true;
+    options.overwrite = true;
     st = cache->set(cache_key, wbuf, &options);
     ASSERT_TRUE(st.ok()) << st.error_str();
     st = cache->get(cache_key, &rbuf);
     ASSERT_TRUE(st.ok()) << st.error_str();
     ASSERT_EQ(rbuf, wbuf);
 
-    options.overrite = false;
+    options.overwrite = false;
     st = cache->set(cache_key, wbuf2, &options);
     ASSERT_EQ(st.error_code(), EEXIST) << st.error_str();
 }
