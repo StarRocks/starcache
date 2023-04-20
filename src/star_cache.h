@@ -33,8 +33,8 @@ public:
 
     // Set the whole cache object.
     // If the `cache_key` exists:
-    // - if overrite=true, replace the cache data.
-    // - if overrite=false, return EEXIST.
+    // - if overwrite=true, replace the cache data.
+    // - if overwrite=false, return EEXIST.
     // If the `ttl_seconds` is 0 (default), no ttl restriction will be set.
     Status set(const CacheKey& cache_key, const IOBuf& buf, WriteOptions* options = nullptr);
 
