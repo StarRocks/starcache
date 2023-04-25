@@ -89,9 +89,10 @@ check_if_done()
 	do
         if test -f "$installprefix/${!file}"
         then
-            break
+            return 0
         fi
 	done
+    return 1
 }
 
 # check_todo_third_party <install_prefix> <archive1> <archive2> ... <archiveN>
