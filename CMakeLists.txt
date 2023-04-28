@@ -214,7 +214,11 @@ set(STARCACHE_BASIC_LIBS
 )
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "ASAN")
-    set(STARCACHE_BASIC_LIBS "${STARCACHE_BASIC_LIBS} -static-libasan")
+    if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+        set(STARCACHE_BASIC_LIBS "${STARCACHE_BASIC_LIBS} -static-libsan")
+    else()
+        set(STARCACHE_BASIC_LIBS "${STARCACHE_BASIC_LIBS} -static-libasan")
+    endif()
 endif()
 
 target_link_libraries(starcache
