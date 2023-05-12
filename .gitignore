@@ -11,3 +11,4 @@ third_party/src/
 # VIM: Commands :cs, :ctags
 tags
 cscope.*
+installed
