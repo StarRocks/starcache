@@ -210,7 +210,7 @@ add_library(starcache STATIC
 )
 
 set(STARCACHE_BASIC_LIBS
-    -lbfd -liberty -lc -lm -ldl -rdynamic -pthread -static-libstdc++ -static-libgcc
+    -lc -lm -ldl -rdynamic -pthread -static-libstdc++ -static-libgcc
 )
 
 if ("${CMAKE_BUILD_TYPE}" STREQUAL "ASAN")
