@@ -64,10 +64,10 @@ BRPC_MD5SUM="9470f1a77ec153e82cd8a25dc2148e47"
 BRPC_DONE="lib/libbrpc.a;lib64/libbrpc.a"
 
 # fmt
-FMT_DOWNLOAD="https://github.com/fmtlib/fmt/releases/download/7.0.3/fmt-7.0.3.zip"
-FMT_NAME=fmt-7.0.3.zip
-FMT_SOURCE=fmt-7.0.3
-FMT_MD5SUM="60c8803eb36a6ff81a4afde33c0f621a"
+FMT_DOWNLOAD="https://github.com/fmtlib/fmt/releases/download/8.1.1/fmt-8.1.1.zip"
+FMT_NAME="fmt-8.1.1.zip"
+FMT_SOURCE="fmt-8.1.1"
+FMT_MD5SUM="16dcd48ecc166f10162450bb28aabc87"
 FMT_DONE="lib/libfmt.a;lib64/libfmt.a"
 
 # boost
